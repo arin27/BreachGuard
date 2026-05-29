@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Admin Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080f;--surface:#0b1120;
+      --amber:#ffcc00;--red:#ff4757;--green:#7fff6a;
+      --border:rgba(255,204,0,0.15);--muted:rgba(255,255,255,0.38);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:rgba(255,255,255,0.88);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden}
+    body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,204,0,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,204,0,0.025) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+    .corner{position:fixed;width:100px;height:100px;pointer-events:none}
+    .corner-tl{top:0;left:0;border-top:2px solid rgba(255,204,0,0.18);border-left:2px solid rgba(255,204,0,0.18)}
+    .corner-tr{top:0;right:0;border-top:2px solid rgba(255,204,0,0.18);border-right:2px solid rgba(255,204,0,0.18)}
+    .corner-bl{bottom:0;left:0;border-bottom:2px solid rgba(255,204,0,0.18);border-left:2px solid rgba(255,204,0,0.18)}
+    .corner-br{bottom:0;right:0;border-bottom:2px solid rgba(255,204,0,0.18);border-right:2px solid rgba(255,204,0,0.18)}
+    .wrap{position:relative;z-index:1;width:100%;max-width:440px;animation:fadeUp 0.6s ease}
+    .top-badge{display:flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,204,0,0.08);border:1px solid rgba(255,204,0,0.2);padding:7px 20px;border-radius:100px;margin-bottom:28px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--amber)}
+    .badge-dot{width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 1.5s ease infinite}
+    .logo{text-align:center;margin-bottom:28px}
+    .logo-icon{font-size:48px;display:block;margin-bottom:10px;filter:drop-shadow(0 0 18px rgba(255,204,0,0.25))}
+    .logo h1{font-size:24px;font-weight:800}
+    .logo h1 em{color:var(--amber);font-style:normal}
+    .logo p{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:5px}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:34px;transition:box-shadow 0.3s}
+    .card:focus-within{box-shadow:0 0 50px rgba(255,204,0,0.07)}
+    .warn{display:flex;align-items:center;gap:10px;background:rgba(255,71,87,0.07);border:1px solid rgba(255,71,87,0.18);border-radius:10px;padding:11px 14px;margin-bottom:22px}
+    .warn span{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--red)}
+    .field{margin-bottom:16px}
+    .field label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:7px}
+    .field input{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:13px 16px;color:rgba(255,255,255,0.88);font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none;transition:border-color 0.3s,box-shadow 0.3s}
+    .field input::placeholder{color:rgba(255,255,255,0.2)}
+    .field input:focus{border-color:rgba(255,204,0,0.45);box-shadow:0 0 0 3px rgba(255,204,0,0.07)}
+    .row{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+    .remember{display:flex;align-items:center;gap:7px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px}
+    .remember input{width:14px;height:14px;accent-color:var(--amber)}
+    .btn{width:100%;padding:15px;background:linear-gradient(135deg,#cc9900,#ffcc00);color:#05080f;border:none;border-radius:12px;font-family:'DM Sans',sans-serif;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0.5px;transition:all 0.2s}
+    .btn:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 10px 28px rgba(255,204,0,0.28)}
+    .btn:active{transform:scale(0.98)}
+    .btn:disabled{opacity:0.35;pointer-events:none}
+    .attempts{display:none;margin-top:12px}
+    .attempts-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--red);letter-spacing:1px;margin-bottom:7px}
+    .dots{display:flex;gap:6px}
+    .dot{width:10px;height:10px;border-radius:50%;background:rgba(255,71,87,0.15);border:1px solid rgba(255,71,87,0.3);transition:background 0.3s}
+    .dot.on{background:var(--red);box-shadow:0 0 8px rgba(255,71,87,0.5)}
+    .msg{margin-top:13px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px;min-height:16px;letter-spacing:1px}
+    .msg.ok{color:var(--green)}.msg.err{color:var(--red)}
+    .divider{height:1px;background:rgba(255,255,255,0.06);margin:20px 0}
+    .sec-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .sec-item{display:flex;align-items:center;gap:7px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(255,255,255,0.18);letter-spacing:1px}
+    .back{display:block;text-align:center;margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-decoration:none;letter-spacing:1px;transition:color 0.2s}
+    .back:hover{color:var(--amber)}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px var(--amber)}50%{opacity:0.35;box-shadow:none}}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+    .shake{animation:shake 0.38s ease}
+  </style>
+</head>
+<body>
+  <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+  <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+  <div class="wrap">
+    <div class="top-badge"><div class="badge-dot"></div>ADMIN PORTAL — RESTRICTED ACCESS</div>
+    <div class="logo">
+      <span class="logo-icon">👑</span>
+      <h1>BREACH<em>GUARD</em></h1>
+      <p>// ADMINISTRATOR CONTROL PANEL</p>
+    </div>
+    <div class="card" id="loginCard">
+      <div class="warn"><span>⚠</span><span>AUTHORIZED PERSONNEL ONLY — ALL ACCESS IS LOGGED</span></div>
+      <div class="field">
+        <label>ADMIN EMAIL</label>
+        <input id="em" type="email" placeholder="admin@breachguard.io" onkeydown="if(event.key==='Enter') document.getElementById('pw').focus()"/>
+      </div>
+      <div class="field">
+        <label>PASSWORD</label>
+        <input id="pw" type="password" placeholder="••••••••••••" onkeydown="if(event.key==='Enter') go()"/>
+      </div>
+      <div class="row">
+        <label class="remember"><input type="checkbox" id="rem"/><span>KEEP SESSION</span></label>
+      </div>
+      <button class="btn" id="btn" onclick="go()">⚡ ACCESS ADMIN PANEL</button>
+      <div class="attempts" id="attDiv">
+        <div class="attempts-label">FAILED ATTEMPTS</div>
+        <div class="dots"><div class="dot" id="d1"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div></div>
+      </div>
+      <div class="msg" id="msg"></div>
+      <div class="divider"></div>
+      <div class="sec-row">
+        <div class="sec-item">🔒 AES-256 encrypted</div>
+        <div class="sec-item">📋 Session logged</div>
+        <div class="sec-item">🛡 JWT secured</div>
+        <div class="sec-item">⏱ 24h session</div>
+      </div>
+    </div>
+    <a href="/index.html" class="back">← Return to public site</a>
+  </div>
+  <script>
+    let fails=0;
+    async function go(){
+      const email=document.getElementById('em').value.trim();
+      const pass=document.getElementById('pw').value;
+      const msg=document.getElementById('msg');
+      const btn=document.getElementById('btn');
+      if(!email||!pass){err('✕ Fill in both fields.');return}
+      btn.textContent='⏳ VERIFYING...';btn.disabled=true;
+      msg.textContent='';msg.className='msg';
+      try{
+        const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pass})});
+        const d=await r.json();
+        if(d.token){
+          const check=await fetch('/api/admin/users',{headers:{Authorization:'Bearer '+d.token}});
+          if(check.ok){
+            localStorage.setItem('adminToken',d.token);
+            localStorage.setItem('adminEmail',email);
+            msg.textContent='✓ Access granted. Loading...';msg.className='msg ok';
+            setTimeout(()=>window.location.href='/admin-dashboard.html',900);
+          } else { fail('✕ Admin role required.'); }
+        } else { fail('✕ '+(d.message||'Invalid credentials.')); }
+      } catch(e){ fail('✕ Server error — is the server running?'); }
+      btn.textContent='⚡ ACCESS ADMIN PANEL';btn.disabled=false;
+    }
+    function fail(m){
+      fails++;
+      err(m);
+      document.getElementById('loginCard').classList.add('shake');
+      setTimeout(()=>document.getElementById('loginCard').classList.remove('shake'),380);
+      document.getElementById('attDiv').style.display='block';
+      if(fails>=1) document.getElementById('d1').classList.add('on');
+      if(fails>=2) document.getElementById('d2').classList.add('on');
+      if(fails>=3){ document.getElementById('d3').classList.add('on'); lock(); }
+    }
+    function lock(){
+      document.getElementById('btn').disabled=true;
+      document.getElementById('btn').textContent='🔒 LOCKED — 5 MIN TIMEOUT';
+      err('✕ Too many attempts. Locked for 5 minutes.');
+      setTimeout(()=>{
+        fails=0;[1,2,3].forEach(i=>document.getElementById('d'+i).classList.remove('on'));
+        document.getElementById('btn').disabled=false;
+        document.getElementById('btn').textContent='⚡ ACCESS ADMIN PANEL';
+        document.getElementById('msg').textContent='';
+      },300000);
+    }
+    function err(m){const el=document.getElementById('msg');el.textContent=m;el.className='msg err'}
+  </script>
+</body>
+</html>

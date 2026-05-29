@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Digital Footprint Score</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080f;--surface:#0b1120;--surface2:#111c2e;
+      --accent:#7fff6a;--accent2:#00cfff;--danger:#ff4757;
+      --amber:#ffcc00;--purple:#b57aff;--border:rgba(0,207,255,0.12);
+      --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.38);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+    .page{max-width:860px;margin:0 auto;padding:40px 24px 100px}
+    .nav{display:flex;align-items:center;gap:12px;margin-bottom:40px}
+    .nav-back{color:var(--muted);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;transition:color 0.2s}
+    .nav-back:hover{color:var(--accent2)}
+    .nav-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.18)}
+
+    .header{margin-bottom:36px}
+    .header h1{font-size:38px;font-weight:700}
+    .header h1 em{color:var(--accent2);font-style:normal}
+    .unique-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(181,122,255,0.1);border:1px solid rgba(181,122,255,0.25);padding:5px 14px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--purple);margin-bottom:14px}
+    .header p{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:8px;line-height:1.7}
+
+    /* INPUT FORM */
+    .form-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:28px;transition:box-shadow 0.3s}
+    .form-card:focus-within{box-shadow:0 0 40px rgba(0,207,255,0.08)}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .field label{display:block;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:8px}
+    .field input,.field select{
+      width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+      border-radius:10px;padding:13px 16px;color:var(--text);
+      font-family:'IBM Plex Mono',monospace;font-size:13px;outline:none;
+      transition:border-color 0.3s;
+    }
+    .field input::placeholder{color:rgba(255,255,255,0.2)}
+    .field input:focus,.field select:focus{border-color:rgba(0,207,255,0.4)}
+    .field select option{background:#0b1120}
+    .scan-btn{
+      width:100%;padding:16px;background:linear-gradient(135deg,#0090cc,#00cfff);
+      color:var(--bg);border:none;border-radius:12px;
+      font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;
+      cursor:pointer;letter-spacing:0.5px;
+      transition:opacity 0.2s,transform 0.15s,box-shadow 0.2s;
+    }
+    .scan-btn:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,207,255,0.3)}
+    .scan-btn:disabled{opacity:0.4;pointer-events:none}
+
+    /* PROGRESS BAR */
+    .progress-wrap{display:none;margin:16px 0}
+    .progress-steps{display:flex;gap:0;margin-bottom:12px}
+    .step{flex:1;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted);padding:8px;border-bottom:2px solid rgba(255,255,255,0.08);transition:color 0.3s,border-color 0.3s}
+    .step.done{color:var(--accent);border-color:var(--accent)}
+    .step.active{color:var(--accent2);border-color:var(--accent2)}
+    .progress-bar{height:3px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+    .progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));width:0%;transition:width 0.5s ease;border-radius:3px}
+
+    /* RESULTS */
+    #results{display:none}
+
+    /* SHADOW SCORE */
+    .score-hero{
+      background:var(--surface);border:1px solid rgba(0,207,255,0.25);
+      border-radius:20px;padding:36px;text-align:center;margin-bottom:20px;
+      position:relative;overflow:hidden;
+    }
+    .score-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center top,rgba(0,207,255,0.06),transparent 60%)}
+    .score-label{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--muted);margin-bottom:12px}
+    .score-ring-wrap{position:relative;width:180px;height:180px;margin:0 auto 20px}
+    .score-ring-wrap canvas{width:180px;height:180px}
+    .score-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    .score-number{font-family:'IBM Plex Mono',monospace;font-size:48px;font-weight:700}
+    .score-max{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted)}
+    .score-title{font-size:22px;font-weight:700;margin-bottom:4px}
+    .score-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px}
+
+    /* DIMENSION CARDS */
+    .dimensions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+    .dim-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color 0.3s,transform 0.2s}
+    .dim-card:hover{border-color:rgba(0,207,255,0.3);transform:translateY(-2px)}
+    .dim-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .dim-name{font-size:13px;font-weight:600}
+    .dim-score{font-family:'IBM Plex Mono',monospace;font-size:14px;font-weight:700}
+    .dim-bar-wrap{height:5px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden;margin-bottom:8px}
+    .dim-bar{height:100%;border-radius:3px;width:0%;transition:width 1.2s ease}
+    .dim-desc{font-size:12px;color:var(--muted);line-height:1.5}
+
+    /* RECOMMENDATIONS */
+    .reco-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px}
+    .reco-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:16px}
+    .reco-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.05);align-items:flex-start}
+    .reco-item:last-child{border:none;padding-bottom:0}
+    .reco-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .reco-text h4{font-size:14px;font-weight:600;margin-bottom:3px}
+    .reco-text p{font-size:12px;color:var(--muted);line-height:1.5}
+    .reco-priority{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:3px 8px;border-radius:4px;margin-top:6px;display:inline-block;letter-spacing:1px}
+
+    /* AI BUTTON */
+    .ai-analyze-btn{
+      width:100%;padding:16px;background:rgba(127,255,106,0.08);border:1px solid rgba(127,255,106,0.25);
+      border-radius:12px;color:var(--accent);cursor:pointer;
+      font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;
+      transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:10px;
+      text-decoration:none;
+    }
+    .ai-analyze-btn:hover{background:rgba(127,255,106,0.15);transform:translateY(-2px)}
+
+    @media(max-width:600px){.form-grid{grid-template-columns:1fr}.dimensions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="nav">
+    <a href="/index.html" class="nav-back">← HOME</a>
+    <span class="nav-title">// DIGITAL FOOTPRINT</span>
+  </div>
+
+  <div class="header">
+    <div class="unique-badge">✦ UNIQUE FEATURE</div>
+    <h1>Digital <em>Footprint</em> Score</h1>
+    <p>Enter your personal details below. Our ML model cross-references<br/>breach databases, domain patterns, and identity signals to generate<br/>your <strong>Shadow Profile Risk Score</strong> — how exposed is your digital identity?</p>
+  </div>
+
+  <div class="form-card">
+    <div class="form-grid">
+      <div class="field">
+        <label>FULL NAME</label>
+        <input id="fullName" placeholder="Jane Smith" type="text"/>
+      </div>
+      <div class="field">
+        <label>EMAIL ADDRESS</label>
+        <input id="fpEmail" placeholder="jane@gmail.com" type="email"/>
+      </div>
+      <div class="field">
+        <label>PHONE NUMBER</label>
+        <input id="fpPhone" placeholder="+1 555 000 0000" type="text"/>
+      </div>
+      <div class="field">
+        <label>CITY / REGION</label>
+        <input id="fpCity" placeholder="New York, USA" type="text"/>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-bottom:20px">
+      <div class="field">
+        <label>COMPANY / DOMAIN</label>
+        <input id="fpDomain" placeholder="mycompany.com" type="text"/>
+      </div>
+      <div class="field">
+        <label>SOCIAL MEDIA ACTIVITY</label>
+        <select id="fpSocial">
+          <option value="low">Low (private / minimal)</option>
+          <option value="medium" selected>Medium (regular posts)</option>
+          <option value="high">High (public influencer)</option>
+        </select>
+      </div>
+    </div>
+    <button class="scan-btn" id="scanBtn" onclick="runFootprintScan()">⚡ ANALYZE DIGITAL FOOTPRINT</button>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-steps" id="progressSteps">
+      <div class="step" id="s1">EMAIL SCAN</div>
+      <div class="step" id="s2">DOMAIN LOOKUP</div>
+      <div class="step" id="s3">IDENTITY MAP</div>
+      <div class="step" id="s4">RISK MODEL</div>
+      <div class="step" id="s5">AI ANALYSIS</div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+  async function runFootprintScan() {
+    const name = document.getElementById('fullName').value.trim();
+    const email = document.getElementById('fpEmail').value.trim();
+    const phone = document.getElementById('fpPhone').value.trim();
+    const city = document.getElementById('fpCity').value.trim();
+    const domain = document.getElementById('fpDomain').value.trim();
+    const social = document.getElementById('fpSocial').value;
+
+    if (!name && !email) {
+      alert('Please enter at least your name and email.');
+      return;
+    }
+
+    document.getElementById('scanBtn').disabled = true;
+    document.getElementById('results').style.display = 'none';
+    const pw = document.getElementById('progressWrap');
+    pw.style.display = 'block';
+
+    // Animate progress steps
+    const steps = ['s1','s2','s3','s4','s5'];
+    const fill = document.getElementById('progressFill');
+    for (let i = 0; i < steps.length; i++) {
+      if (i > 0) document.getElementById(steps[i-1]).classList.replace('active','done');
+      document.getElementById(steps[i]).classList.add('active');
+      fill.style.width = ((i+1)/steps.length*100) + '%';
+      await sleep(600);
+    }
+    document.getElementById(steps[steps.length-1]).classList.replace('active','done');
+    await sleep(300);
+
+    // Check email breach
+    let emailBreaches = 0, emailBreachData = [];
+    if (email) {
+      try {
+        const res = await fetch('/api/breach/check', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({email})
+        });
+        const d = await res.json();
+        emailBreaches = d.breachCount || 0;
+        emailBreachData = d.breaches || [];
+      } catch(e) {}
+    }
+
+    // ML Score calculation
+    const scores = computeFootprintScore({name,email,phone,city,domain,social,emailBreaches,emailBreachData});
+
+    pw.style.display = 'none';
+    document.getElementById('scanBtn').disabled = false;
+    renderFootprintResults({name,email,phone,city,domain,social,emailBreaches,emailBreachData,...scores});
+  }
+
+  function computeFootprintScore({name,email,phone,city,domain,social,emailBreaches,emailBreachData}) {
+    let scores = {};
+
+    // Email exposure (0–30)
+    scores.email = Math.min(30, emailBreaches * 9 + (email ? 5 : 0));
+
+    // Identity breadth (0–25): how much personal info provided / publicly guessable
+    let ib = 0;
+    if (name) ib += 8;
+    if (phone) ib += 7;
+    if (city) ib += 5;
+    if (email && email.includes(name.split(' ')[0]?.toLowerCase())) ib += 5;
+    scores.identity = Math.min(25, ib);
+
+    // Domain risk (0–20)
+    let dr = 0;
+    if (domain) {
+      dr += 10;
+      if (emailBreachData.some(b=>b.breachSource==='LinkedIn')) dr += 6;
+      if (domain.includes('gmail')||domain.includes('yahoo')||domain.includes('hotmail')) dr -= 4;
+    }
+    scores.domain = Math.max(0, Math.min(20, dr));
+
+    // Social exposure (0–15)
+    scores.social = social==='high' ? 15 : social==='medium' ? 9 : 4;
+
+    // Recency risk (0–10)
+    const recent = emailBreachData.filter(b=>new Date(b.breachDate)>=new Date('2023-01-01')).length;
+    scores.recency = Math.min(10, recent * 5);
+
+    const total = Object.values(scores).reduce((a,b)=>a+b,0);
+    const level = total < 25 ? 'LOW' : total < 55 ? 'MEDIUM' : total < 75 ? 'HIGH' : 'CRITICAL';
+    const color = {LOW:'#7fff6a',MEDIUM:'#ffcc00',HIGH:'#ff9f43',CRITICAL:'#ff4757'}[level];
+
+    return {scores, total, level, color};
+  }
+
+  function renderFootprintResults({name,email,scores,total,level,color,emailBreaches,emailBreachData,social,phone,domain}) {
+    const panel = document.getElementById('results');
+    panel.style.display = 'block';
+
+    const dims = [
+      {name:'Email Exposure',key:'email',max:30,icon:'📧',desc:`Found in ${emailBreaches} known breach${emailBreaches!==1?'es':''}.`},
+      {name:'Identity Breadth',key:'identity',max:25,icon:'🪪',desc:'How much personal info is publicly linkable to you.'},
+      {name:'Domain Risk',key:'domain',max:20,icon:'🏢',desc:domain?`Domain "${domain}" cross-referenced with breach sources.`:'No company domain provided.'},
+      {name:'Social Exposure',key:'social',max:15,icon:'📱',desc:`${social.charAt(0).toUpperCase()+social.slice(1)} social media activity level.`},
+      {name:'Recency Factor',key:'recency',max:10,icon:'⏰',desc:'Weighted score for breaches in the last 2 years.'},
+    ];
+
+    const recos = getRecommendations(level, emailBreaches, social, phone, domain);
+
+    panel.innerHTML = `
+      <div class="score-hero">
+        <div class="score-label">YOUR SHADOW PROFILE RISK SCORE</div>
+        <div class="score-ring-wrap">
+          <canvas id="scoreRing"></canvas>
+          <div class="score-center">
+            <div class="score-number" style="color:${color}">${total}</div>
+            <div class="score-max">/100</div>
+          </div>
+        </div>
+        <div class="score-title">Threat Level: <span style="color:${color}">${level}</span></div>
+        <div class="score-sub">// Digital identity exposure assessment for ${name || email || 'target'}</div>
+      </div>
+
+      <div class="dimensions" id="dimsGrid"></div>
+
+      <div class="reco-card">
+        <div class="reco-title">// AI-RECOMMENDED ACTION PLAN</div>
+        <div id="recoList"></div>
+      </div>
+
+      <a href="/ai-advisor.html?email=${encodeURIComponent(email||'')}&count=${emailBreaches}" class="ai-analyze-btn">
+        🤖 Get Full AI Threat Analysis →
+      </a>
+    `;
+
+    // Draw ring
+    setTimeout(() => {
+      const canvas = document.getElementById('scoreRing');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 180; canvas.height = 180;
+      const cx=90,cy=90,r=75;
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.strokeStyle='rgba(255,255,255,0.07)'; ctx.lineWidth=12; ctx.stroke();
+      const pct=total/100;
+      ctx.beginPath(); ctx.arc(cx,cy,r,-Math.PI/2,-Math.PI/2+pct*Math.PI*2);
+      ctx.strokeStyle=color; ctx.lineWidth=12; ctx.lineCap='round'; ctx.stroke();
+    },50);
+
+    // Dimensions
+    const dimsGrid = document.getElementById('dimsGrid');
+    dims.forEach(d => {
+      const pct = Math.round(scores[d.key]/d.max*100);
+      const c = pct<40?'#7fff6a':pct<70?'#ffcc00':'#ff4757';
+      dimsGrid.innerHTML += `
+        <div class="dim-card">
+          <div class="dim-header">
+            <div class="dim-name">${d.icon} ${d.name}</div>
+            <div class="dim-score" style="color:${c}">${scores[d.key]}/${d.max}</div>
+          </div>
+          <div class="dim-bar-wrap"><div class="dim-bar" style="background:${c}" data-w="${pct}%"></div></div>
+          <div class="dim-desc">${d.desc}</div>
+        </div>`;
+    });
+    setTimeout(()=>{
+      document.querySelectorAll('.dim-bar').forEach(b=>{b.style.width=b.dataset.w});
+    },200);
+
+    // Recommendations
+    const recoList = document.getElementById('recoList');
+    recos.forEach(r => {
+      const bg = r.p==='CRITICAL'?'rgba(255,71,87,0.1)':r.p==='HIGH'?'rgba(255,159,67,0.1)':'rgba(127,255,106,0.07)';
+      const tc = r.p==='CRITICAL'?'#ff4757':r.p==='HIGH'?'#ff9f43':'#7fff6a';
+      recoList.innerHTML += `
+        <div class="reco-item">
+          <div class="reco-icon" style="background:${bg}">${r.icon}</div>
+          <div class="reco-text">
+            <h4>${r.title}</h4>
+            <p>${r.desc}</p>
+            <span class="reco-priority" style="background:${bg};color:${tc}">${r.p}</span>
+          </div>
+        </div>`;
+    });
+  }
+
+  function getRecommendations(level, breaches, social, phone, domain) {
+    const all = [
+      {icon:'🔑',title:'Enable Passkeys or Hardware MFA',desc:'Replace SMS-based 2FA with an authenticator app or hardware key (YubiKey). SMS is vulnerable to SIM-swap attacks.',p:'CRITICAL'},
+      {icon:'🔒',title:'Change Breached Account Passwords Immediately',desc:`${breaches} breach${breaches!==1?'es':''} detected. Change passwords on all affected services. Use a password manager to generate unique 20+ char passwords.`,p:'CRITICAL'},
+      {icon:'🕵️',title:'Enable Have I Been Pwned Alerts',desc:'Set up automatic breach monitoring so you are notified the moment your email appears in a new breach.',p:'HIGH'},
+      {icon:'📱',title:'Reduce Social Media Footprint',desc:social==='high'?'Your high social activity level creates a large attack surface for spear phishing. Audit your public posts and limit personal details.':'Audit your social profiles and remove phone numbers, addresses, and employer info from public view.',p:social==='high'?'HIGH':'MEDIUM'},
+      {icon:'🌐',title:'Domain & Email Spoofing Protection',desc:domain?`Set up DMARC, DKIM, and SPF records for ${domain} to prevent email spoofing attacks using your domain.`:'If you own a domain, add DMARC/DKIM/SPF records to prevent spoofing.',p:'HIGH'},
+      {icon:'📞',title:'Protect Your Phone Number',desc:'Use a virtual number (Google Voice) for online signups. Contact your carrier to enable a SIM lock PIN to prevent SIM-swap attacks.',p:'MEDIUM'},
+      {icon:'🧊',title:'Freeze Your Credit',desc:'Place a free credit freeze at all 3 bureaus (Equifax, Experian, TransUnion) to prevent new accounts being opened in your name.',p:'HIGH'},
+      {icon:'🔍',title:'Search for Yourself Online',desc:'Google your name, email, and phone. Request removal from data broker sites (Spokeo, WhitePages, etc.) using opt-out forms.',p:'MEDIUM'},
+    ];
+    // Filter relevance
+    return level==='LOW' ? all.slice(3,7) : level==='CRITICAL' ? all : all.slice(0,5);
+  }
+
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+</script>
+</body>
+</html>

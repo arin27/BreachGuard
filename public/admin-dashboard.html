@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#05080f;--surface:#0b1120;--surface2:#111c2e;--amber:#ffcc00;--red:#ff4757;--green:#7fff6a;--cyan:#00cfff;--border:rgba(255,204,0,0.12);--muted:rgba(255,255,255,0.38)}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:rgba(255,255,255,0.88);min-height:100vh}
+    .layout{display:flex;min-height:100vh}
+    .sidebar{width:230px;flex-shrink:0;background:#070d18;border-right:1px solid var(--border);padding:20px 12px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .sb-logo{display:flex;align-items:center;gap:9px;padding:8px 10px;margin-bottom:20px}
+    .sb-logo-icon{width:30px;height:30px;background:rgba(255,204,0,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+    .sb-logo-name{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:700}
+    .sb-logo-name em{color:var(--amber);font-style:normal}
+    .sb-section{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.18);padding:8px 10px 4px;margin-top:8px}
+    .sb-link{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:9px;text-decoration:none;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.18s;border:1px solid transparent}
+    .sb-link:hover{background:rgba(255,204,0,0.05);color:rgba(255,255,255,0.88)}
+    .sb-link.active{background:rgba(255,204,0,0.08);color:var(--amber);border-color:rgba(255,204,0,0.14)}
+    .sb-link .ic{font-size:14px;width:18px;text-align:center}
+    .sb-foot{margin-top:auto;padding:12px 10px;background:rgba(255,204,0,0.04);border:1px solid rgba(255,204,0,0.1);border-radius:10px}
+    .sb-foot-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(255,204,0,0.4);letter-spacing:2px;margin-bottom:4px}
+    .sb-foot-val{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber);word-break:break-all}
+    .logout-btn{display:block;width:100%;margin-top:8px;padding:8px;background:rgba(255,71,87,0.07);border:1px solid rgba(255,71,87,0.18);border-radius:8px;color:var(--red);font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;text-align:center;transition:background 0.18s}
+    .logout-btn:hover{background:rgba(255,71,87,0.14)}
+    .main{flex:1;overflow:hidden}
+    .topbar{padding:16px 26px;border-bottom:1px solid var(--border);background:#070d18;display:flex;align-items:center;justify-content:space-between}
+    .topbar h2{font-size:19px;font-weight:800}
+    .topbar h2 em{color:var(--amber);font-style:normal}
+    .topbar p{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:2px}
+    .status-pill{display:flex;align-items:center;gap:7px;background:rgba(127,255,106,0.07);border:1px solid rgba(127,255,106,0.16);padding:7px 14px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--green)}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite}
+    .tab-nav{display:flex;border-bottom:1px solid var(--border);padding:0 26px;background:var(--surface)}
+    .tab-btn{padding:13px 20px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.18s;background:none;border-top:none;border-left:none;border-right:none}
+    .tab-btn:hover{color:rgba(255,255,255,0.88)}
+    .tab-btn.active{color:var(--amber);border-bottom-color:var(--amber)}
+    .content{padding:26px;overflow-y:auto;height:calc(100vh - 124px)}
+    .tab-panel{display:none}
+    .tab-panel.active{display:block}
+    .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:19px;transition:border-color 0.28s,transform 0.2s}
+    .stat-card:hover{border-color:rgba(255,204,0,0.28);transform:translateY(-2px)}
+    .stat-n{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700;color:var(--amber)}
+    .stat-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:5px}
+    .table-card{background:var(--surface);border:1px solid var(--border);border-radius:15px;overflow:hidden;margin-bottom:18px}
+    .table-head{padding:15px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center}
+    .table-head-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted)}
+    .table-count{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:3px 12px;border-radius:100px;background:rgba(255,204,0,0.07);color:var(--amber);border:1px solid rgba(255,204,0,0.14)}
+    table{width:100%;border-collapse:collapse}
+    thead th{padding:11px 18px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.25);border-bottom:1px solid rgba(255,255,255,0.05)}
+    tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s}
+    tbody tr:last-child{border:none}
+    tbody tr:hover{background:rgba(255,204,0,0.025)}
+    td{padding:12px 18px;font-size:13px}
+    .mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+    .pill{display:inline-block;padding:3px 10px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px}
+    .pill-admin{background:rgba(255,204,0,0.1);color:var(--amber);border:1px solid rgba(255,204,0,0.2)}
+    .pill-user{background:rgba(0,207,255,0.07);color:var(--cyan);border:1px solid rgba(0,207,255,0.14)}
+    .pill-breach{background:rgba(255,71,87,0.1);color:var(--red);border:1px solid rgba(255,71,87,0.18)}
+    .pill-safe{background:rgba(127,255,106,0.07);color:var(--green);border:1px solid rgba(127,255,106,0.17)}
+    .date-cell{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,0.28)}
+    .search-item{display:flex;align-items:center;gap:14px;padding:13px 20px;border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s}
+    .search-item:last-child{border:none}
+    .search-item:hover{background:rgba(255,204,0,0.025)}
+    .search-avatar{width:33px;height:33px;border-radius:9px;background:rgba(255,204,0,0.09);border:1px solid rgba(255,204,0,0.16);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+    .search-info{flex:1}
+    .search-email{font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;margin-bottom:2px}
+    .search-meta{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px}
+    .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+    .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+    .chart-box-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:14px}
+    .empty{padding:44px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:rgba(255,255,255,0.2);letter-spacing:2px}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
+    @media(max-width:768px){.layout{flex-direction:column}.sidebar{width:100%;height:auto;position:static}.stat-grid{grid-template-columns:1fr 1fr}.charts-row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <div class="sb-logo"><div class="sb-logo-icon">👑</div><div class="sb-logo-name">BREACH<em>GUARD</em></div></div>
+    <div class="sb-section">ADMIN VIEWS</div>
+    <div class="sb-link active" onclick="showTab('overview',this)"><span class="ic">📊</span>Overview</div>
+    <div class="sb-link" onclick="showTab('users',this)"><span class="ic">👥</span>All Users</div>
+    <div class="sb-link" onclick="showTab('searches',this)"><span class="ic">🔍</span>Search History</div>
+    <div class="sb-link" onclick="showTab('breaches',this)"><span class="ic">🚨</span>Breach Records</div>
+    <div class="sb-section">NAVIGATION</div>
+    <a class="sb-link" href="/index.html"><span class="ic">🏠</span>Public Site</a>
+    <a class="sb-link" href="/analytics.html"><span class="ic">📈</span>Analytics</a>
+    <a class="sb-link" href="/ai-advisor.html"><span class="ic">🤖</span>AI Advisor</a>
+    <div class="sb-foot">
+      <div class="sb-foot-label">LOGGED IN AS</div>
+      <div class="sb-foot-val" id="loggedInAs">loading...</div>
+      <button class="logout-btn" onclick="logout()">LOG OUT</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div><h2>Admin <em>Dashboard</em></h2><p>// DBMS CONTROL CENTER · USER & SEARCH MANAGEMENT</p></div>
+      <div class="status-pill"><div class="live-dot"></div>LIVE SESSION</div>
+    </div>
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tab-overview" onclick="showTab('overview',this)">📊 OVERVIEW</button>
+      <button class="tab-btn" id="tab-users" onclick="showTab('users',this)">👥 USERS</button>
+      <button class="tab-btn" id="tab-searches" onclick="showTab('searches',this)">🔍 SEARCH HISTORY</button>
+      <button class="tab-btn" id="tab-breaches" onclick="showTab('breaches',this)">🚨 BREACH DB</button>
+    </div>
+    <div class="content">
+      <div class="tab-panel active" id="panel-overview">
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-n" id="stUsers">—</div><div class="stat-l">REGISTERED USERS</div></div>
+          <div class="stat-card"><div class="stat-n" id="stAdmins">—</div><div class="stat-l">ADMIN ACCOUNTS</div></div>
+          <div class="stat-card"><div class="stat-n" id="stBreaches">—</div><div class="stat-l">BREACH RECORDS</div></div>
+          <div class="stat-card"><div class="stat-n" id="stSearches" style="color:var(--cyan)">—</div><div class="stat-l">TOTAL SEARCHES</div></div>
+        </div>
+        <div class="charts-row">
+          <div class="chart-box"><div class="chart-box-label">// USER ROLES BREAKDOWN</div><canvas id="rolesChart" height="200"></canvas></div>
+          <div class="chart-box"><div class="chart-box-label">// SEARCHES BY TYPE</div><canvas id="activityChart" height="200"></canvas></div>
+        </div>
+        <div class="table-card">
+          <div class="table-head"><span class="table-head-title">// RECENTLY JOINED USERS</span></div>
+          <table><thead><tr><th>NAME</th><th>EMAIL</th><th>ROLE</th><th>JOINED</th></tr></thead><tbody id="recentUsers"><tr><td colspan="4" class="empty">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="tab-panel" id="panel-users">
+        <div class="table-card">
+          <div class="table-head"><span class="table-head-title">// ALL REGISTERED USERS</span><span class="table-count" id="userCount">—</span></div>
+          <table><thead><tr><th>#</th><th>NAME</th><th>EMAIL</th><th>ROLE</th><th>JOINED DATE</th><th>SEARCHES</th></tr></thead><tbody id="allUsers"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="tab-panel" id="panel-searches">
+        <div class="table-card">
+          <div class="table-head"><span class="table-head-title">// USER SEARCH HISTORY</span><span class="table-count" id="searchCount">—</span></div>
+          <div id="searchList"><div class="empty">Loading...</div></div>
+        </div>
+      </div>
+      <div class="tab-panel" id="panel-breaches">
+        <div class="table-card">
+          <div class="table-head"><span class="table-head-title">// FULL BREACH DATABASE</span><span class="table-count" id="breachCount">—</span></div>
+          <table><thead><tr><th>#</th><th>EMAIL</th><th>SOURCE</th><th>BREACH DATE</th><th>DAYS AGO</th></tr></thead><tbody id="allBreaches"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const token=localStorage.getItem('adminToken');
+const adminEmail=localStorage.getItem('adminEmail')||'admin';
+document.getElementById('loggedInAs').textContent=adminEmail;
+if(!token)window.location.href='/admin-login.html';
+const MOCK_SEARCHES=[
+  {user:'hina@test.com',query:'hina@test.com',type:'email',result:'breached',count:3,time:'2025-01-15 09:23'},
+  {user:'admin@test.com',query:'admin@test.com',type:'email',result:'breached',count:2,time:'2025-01-15 10:01'},
+  {user:'user1@gmail.com',query:'user1@gmail.com',type:'email',result:'breached',count:2,time:'2025-01-15 11:45'},
+  {user:'user2@gmail.com',query:'user2@gmail.com',type:'email',result:'breached',count:2,time:'2025-01-16 08:12'},
+  {user:'user3@yahoo.com',query:'+1 555 123 4567',type:'phone',result:'safe',count:0,time:'2025-01-16 12:30'},
+  {user:'user4@outlook.com',query:'user4@outlook.com',type:'email',result:'breached',count:2,time:'2025-01-17 14:22'},
+  {user:'user5@gmail.com',query:'company.com',type:'domain',result:'safe',count:0,time:'2025-01-17 16:05'},
+  {user:'user6@yahoo.com',query:'user6@yahoo.com',type:'email',result:'breached',count:2,time:'2025-01-18 09:18'},
+  {user:'user7@gmail.com',query:'user7@gmail.com',type:'email',result:'safe',count:0,time:'2025-01-18 11:33'},
+  {user:'user8@gmail.com',query:'+44 7911 123456',type:'phone',result:'safe',count:0,time:'2025-01-19 13:47'},
+  {user:'user9@gmail.com',query:'user9@gmail.com',type:'email',result:'breached',count:2,time:'2025-01-20 08:55'},
+  {user:'user10@gmail.com',query:'mycompany.org',type:'domain',result:'safe',count:0,time:'2025-01-20 15:10'},
+];
+const SRC={LinkedIn:'💼',Facebook:'📘',Adobe:'🎨',Twitter:'🐦',Dropbox:'📦',Canva:'🎭'};
+let U=[],B=[];
+async function loadAll(){
+  try{
+    const ur=await fetch('/api/admin/users',{headers:{Authorization:'Bearer '+token}});
+    if(!ur.ok){window.location.href='/admin-login.html';return}
+    U=(await ur.json()).users||[];
+    B=(await(await fetch('/api/breach/all')).json()).breaches||[];
+    buildOverview();buildUsers();buildSearches();buildBreaches();
+  }catch(e){window.location.href='/admin-login.html'}
+}
+function fmt(d){return new Date(d).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}
+function buildOverview(){
+  const adm=U.filter(u=>u.role==='admin').length;
+  document.getElementById('stUsers').textContent=U.length;
+  document.getElementById('stAdmins').textContent=adm;
+  document.getElementById('stBreaches').textContent=B.length;
+  document.getElementById('stSearches').textContent=MOCK_SEARCHES.length;
+  new Chart(document.getElementById('rolesChart'),{type:'doughnut',data:{labels:['Admin','User'],datasets:[{data:[adm,U.length-adm],backgroundColor:['rgba(255,204,0,0.7)','rgba(0,207,255,0.5)'],borderColor:['#05080f'],borderWidth:4,hoverOffset:8}]},options:{cutout:'65%',plugins:{legend:{labels:{color:'rgba(255,255,255,0.4)',font:{family:'IBM Plex Mono',size:10}}}}}});
+  const types={};MOCK_SEARCHES.forEach(s=>types[s.type]=(types[s.type]||0)+1);
+  new Chart(document.getElementById('activityChart'),{type:'bar',data:{labels:Object.keys(types).map(t=>t.toUpperCase()),datasets:[{data:Object.values(types),backgroundColor:['rgba(255,71,87,0.6)','rgba(0,207,255,0.6)','rgba(127,255,106,0.6)'],borderRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'rgba(255,255,255,0.35)',font:{size:9},stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+  const rb=document.getElementById('recentUsers');rb.innerHTML='';
+  [...U].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5).forEach(u=>{rb.innerHTML+=`<tr><td style="font-weight:600">${u.name}</td><td class="mono">${u.email}</td><td><span class="pill ${u.role==='admin'?'pill-admin':'pill-user'}">${u.role.toUpperCase()}</span></td><td class="date-cell">${fmt(u.createdAt)}</td></tr>`});
+}
+function buildUsers(){
+  const tb=document.getElementById('allUsers');tb.innerHTML='';
+  document.getElementById('userCount').textContent=U.length+' USERS';
+  [...U].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).forEach((u,i)=>{
+    const sc=MOCK_SEARCHES.filter(s=>s.user===u.email).length;
+    tb.innerHTML+=`<tr><td class="date-cell">${i+1}</td><td style="font-weight:600">${u.name}</td><td class="mono">${u.email}</td><td><span class="pill ${u.role==='admin'?'pill-admin':'pill-user'}">${u.role.toUpperCase()}</span></td><td class="date-cell">${fmt(u.createdAt)}</td><td class="mono" style="color:var(--cyan)">${sc||'—'}</td></tr>`;
+  });
+}
+function buildSearches(){
+  const list=document.getElementById('searchList');list.innerHTML='';
+  document.getElementById('searchCount').textContent=MOCK_SEARCHES.length+' QUERIES';
+  const te={email:'📧',phone:'📞',domain:'🏢'};
+  MOCK_SEARCHES.forEach(s=>{
+    const br=s.result==='breached';
+    list.innerHTML+=`<div class="search-item"><div class="search-avatar">${te[s.type]||'🔍'}</div><div class="search-info"><div class="search-email">${s.query}</div><div class="search-meta">BY ${s.user} · ${s.type.toUpperCase()} SCAN · ${s.time}</div></div><div><span class="pill ${br?'pill-breach':'pill-safe'}">${br?`⚠ ${s.count} BREACH${s.count!==1?'ES':''}`:'✓ SAFE'}</span></div></div>`;
+  });
+}
+function buildBreaches(){
+  const tb=document.getElementById('allBreaches');tb.innerHTML='';
+  document.getElementById('breachCount').textContent=B.length+' RECORDS';
+  const now=new Date();
+  B.forEach((b,i)=>{
+    const days=Math.floor((now-new Date(b.breachDate))/(86400000));
+    tb.innerHTML+=`<tr><td class="date-cell">${i+1}</td><td class="mono">${b.email}</td><td><span class="pill pill-breach">${SRC[b.breachSource]||'⚠️'} ${b.breachSource}</span></td><td class="date-cell">${fmt(b.breachDate)}</td><td class="date-cell">${days}d ago</td></tr>`;
+  });
+}
+function showTab(name,el){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn,.sb-link').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  el.classList.add('active');
+  const tb=document.getElementById('tab-'+name);if(tb)tb.classList.add('active');
+}
+function logout(){localStorage.removeItem('adminToken');localStorage.removeItem('adminEmail');window.location.href='/admin-login.html'}
+loadAll();
+</script>
+</body>
+</html>

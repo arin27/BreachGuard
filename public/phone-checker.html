@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Phone & Domain Checker</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080f;--surface:#0b1120;--surface2:#111c2e;
+      --accent:#7fff6a;--cyan:#00cfff;--danger:#ff4757;
+      --amber:#ffcc00;--border:rgba(255,255,255,0.08);
+      --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.38);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .page{max-width:900px;margin:0 auto;padding:40px 24px 80px}
+    .nav{display:flex;align-items:center;gap:12px;margin-bottom:40px}
+    .nav-back{color:var(--muted);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;transition:color 0.2s}
+    .nav-back:hover{color:var(--cyan)}
+
+    .header{margin-bottom:36px}
+    .header h1{font-size:38px;font-weight:700}
+    .header h1 em{color:var(--cyan);font-style:normal}
+    .header p{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:8px}
+
+    /* TABS */
+    .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:5px;margin-bottom:28px;width:fit-content}
+    .tab{padding:10px 24px;border-radius:10px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;color:var(--muted);transition:all 0.2s;border:1px solid transparent}
+    .tab.active{background:var(--surface2);color:var(--cyan);border-color:rgba(0,207,255,0.2)}
+    .tab:hover:not(.active){color:var(--text)}
+
+    /* CHECKER CARD */
+    .checker-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px;margin-bottom:24px;transition:box-shadow 0.3s}
+    .checker-card:focus-within{box-shadow:0 0 40px rgba(0,207,255,0.06)}
+    .checker-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px}
+    .input-row{display:flex;gap:12px}
+    .check-input{flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px 18px;color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:14px;outline:none;transition:border-color 0.3s}
+    .check-input::placeholder{color:rgba(255,255,255,0.2)}
+    .check-input:focus{border-color:rgba(0,207,255,0.4)}
+    .check-btn{padding:14px 28px;background:var(--cyan);color:var(--bg);border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+    .check-btn:hover{background:#33d6ff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,207,255,0.3)}
+    .check-btn:disabled{opacity:0.4;pointer-events:none}
+
+    /* RESULT CARDS */
+    .result-section{display:none}
+
+    .result-hero{
+      background:var(--surface);border:1px solid var(--border);border-radius:18px;
+      padding:28px;margin-bottom:16px;display:flex;align-items:center;gap:24px;
+    }
+    .result-icon-big{font-size:48px;flex-shrink:0}
+    .result-title{font-size:22px;font-weight:700}
+    .result-sub{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-top:4px}
+    .risk-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;margin-top:10px}
+
+    .info-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px}
+    .info-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px}
+    .info-card-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:6px}
+    .info-card-val{font-size:16px;font-weight:700}
+
+    .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px}
+    .chart-box-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:16px}
+
+    .findings-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:16px}
+    .findings-title{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:14px}
+    .finding-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .finding-item:last-child{border:none;padding-bottom:0}
+    .finding-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+    .finding-text{font-size:13px;line-height:1.5}
+    .finding-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);margin-top:2px}
+
+    .ai-btn{display:flex;align-items:center;justify-content:center;gap:10px;padding:16px;background:rgba(127,255,106,0.07);border:1px solid rgba(127,255,106,0.2);border-radius:12px;color:var(--accent);cursor:pointer;font-size:15px;font-weight:600;transition:all 0.2s;text-decoration:none}
+    .ai-btn:hover{background:rgba(127,255,106,0.14);transform:translateY(-2px)}
+
+    @media(max-width:600px){.info-grid{grid-template-columns:1fr 1fr}.chart-row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="nav">
+    <a href="/index.html" class="nav-back">← HOME</a>
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.18)">// EXTENDED CHECKER</span>
+  </div>
+
+  <div class="header">
+    <h1>Phone & <em>Domain</em> Checker</h1>
+    <p>// SCAN PHONE NUMBERS AND COMPANY DOMAINS FOR BREACH EXPOSURE</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('phone',this)">📞 Phone Number</div>
+    <div class="tab" onclick="switchTab('domain',this)">🏢 Domain / Company</div>
+  </div>
+
+  <!-- PHONE TAB -->
+  <div id="phoneTab">
+    <div class="checker-card">
+      <div class="checker-label">PHONE NUMBER (WITH COUNTRY CODE)</div>
+      <div class="input-row">
+        <input class="check-input" id="phoneInput" placeholder="+1 555 000 0000" type="tel" onkeydown="if(event.key==='Enter') checkPhone()"/>
+        <button class="check-btn" id="phonBtn" onclick="checkPhone()">SCAN NUMBER</button>
+      </div>
+    </div>
+    <div class="result-section" id="phoneResults"></div>
+  </div>
+
+  <!-- DOMAIN TAB -->
+  <div id="domainTab" style="display:none">
+    <div class="checker-card">
+      <div class="checker-label">COMPANY DOMAIN OR EMAIL DOMAIN</div>
+      <div class="input-row">
+        <input class="check-input" id="domainInput" placeholder="try: test.com · gmail.com · outlook.com" type="text" onkeydown="if(event.key==='Enter') checkDomain()"/>
+        <button class="check-btn" id="domBtn" onclick="checkDomain()">SCAN DOMAIN</button>
+      </div>
+    </div>
+    <div class="result-section" id="domainResults"></div>
+  </div>
+</div>
+
+<script>
+  function switchTab(tab, el) {
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('phoneTab').style.display = tab==='phone'?'block':'none';
+    document.getElementById('domainTab').style.display = tab==='domain'?'block':'none';
+  }
+
+  // ── SAMPLE PHONE BREACH DATABASE ──
+  // In production: integrate with HaveIBeenPwned or Truecaller API
+  const PHONE_BREACH_DB = [
+    { phone: '+60123456789', source: 'Truecaller DB', date: '2022-03-15', type: 'Personal Info Leak' },
+    { phone: '+60123456789', source: 'WhatsApp Scrape', date: '2021-09-01', type: 'Contact Exposure' },
+    { phone: '+60112345678', source: 'Shopee Data Breach', date: '2023-05-20', type: 'E-commerce Leak' },
+    { phone: '+60112345678', source: 'Spam Marketing Lists', date: '2022-11-10', type: 'Marketing Exposure' },
+    { phone: '+60112345678', source: 'Telegram Scrape', date: '2024-01-08', type: 'Social Platform Leak' },
+    { phone: '+601987654321', source: 'Truecaller DB', date: '2021-06-14', type: 'Personal Info Leak' },
+    { phone: '+14155552671', source: 'LinkedIn Scrape', date: '2021-04-08', type: 'Professional Network' },
+    { phone: '+14155552671', source: 'Facebook Data Leak', date: '2021-03-10', type: 'Social Media Breach' },
+    { phone: '+447911123456', source: 'UK Telecom Breach', date: '2020-08-22', type: 'Telecom Provider Leak' },
+    { phone: '+447911123456', source: 'Deliveroo Breach', date: '2022-12-05', type: 'Food Delivery App' },
+    { phone: '+919876543210', source: 'Aadhaar Leak', date: '2023-01-17', type: 'Government DB Exposure' },
+    { phone: '+919876543210', source: 'JioMart Breach', date: '2022-07-30', type: 'E-commerce Leak' },
+    { phone: '+919876543210', source: 'Truecaller DB', date: '2021-11-05', type: 'Personal Info Leak' },
+  ];
+
+  // ── PHONE CHECKER ──
+  async function checkPhone() {
+    const phone = document.getElementById('phoneInput').value.trim();
+    if (!phone) return;
+    const btn = document.getElementById('phonBtn');
+    btn.disabled=true; btn.textContent='SCANNING...';
+    const panel = document.getElementById('phoneResults');
+    panel.style.display='block';
+    panel.innerHTML = '<div style="text-align:center;padding:40px;font-family:IBM Plex Mono,monospace;font-size:12px;color:rgba(255,255,255,0.3);letter-spacing:2px">ANALYZING...</div>';
+
+    await sleep(1200);
+    btn.disabled=false; btn.textContent='SCAN NUMBER';
+
+    // Call real server route which uses BreachDirectory API
+    let matchedBreaches = [];
+    let apiSource = 'Simulated';
+    try {
+      const apiRes = await fetch('/api/breach/check-phone', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({phone})
+      });
+      const apiData = await apiRes.json();
+      matchedBreaches = apiData.breaches || [];
+      apiSource = apiData.source || 'BreachDirectory API';
+    } catch(e) {
+      console.log('API call failed, using simulation');
+    }
+
+    const digits = phone.replace(/\D/g,'');
+    const riskSeed = digits.split('').reduce((a,b)=>a+parseInt(b),0);
+    const isVoIP = digits.startsWith('1800')||digits.startsWith('1888')||riskSeed%7===0;
+    const breachCount = matchedBreaches.length > 0 ? matchedBreaches.length : 0;
+    const detectedSources = matchedBreaches.map(b => b.breachSource || b.source || 'Unknown');
+
+    const riskScore = Math.min(100, breachCount*22 + (isVoIP?5:15) + (riskSeed%20));
+    const level = riskScore<30?'LOW':riskScore<60?'MEDIUM':'HIGH';
+    const color = {LOW:'#7fff6a',MEDIUM:'#ffcc00',HIGH:'#ff4757'}[level];
+    const carrier = ['AT&T','Verizon','T-Mobile','Vodafone','Jio','Airtel'][riskSeed%6];
+    const numberType = isVoIP?'VoIP / Virtual':'Mobile';
+
+    panel.innerHTML = `
+      <div class="result-hero" style="border-color:${color}40">
+        <div class="result-icon-big">${breachCount>0?'📵':'📱'}</div>
+        <div>
+          <div class="result-title">${breachCount>0?`Found in ${breachCount} dataset${breachCount>1?'s':''}`:'No major leaks detected'}</div>
+          <div class="result-sub">// Analysis for ${phone}</div>
+          <div class="risk-chip" style="background:${color}18;color:${color};border:1px solid ${color}40">
+            RISK: ${level} · SCORE ${riskScore}/100
+          </div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card"><div class="info-card-label">CARRIER (EST.)</div><div class="info-card-val">${carrier}</div></div>
+        <div class="info-card"><div class="info-card-label">NUMBER TYPE</div><div class="info-card-val">${numberType}</div></div>
+        <div class="info-card"><div class="info-card-label">DATASETS HIT</div><div class="info-card-val" style="color:${color}">${breachCount}</div></div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-box">
+          <div class="chart-box-label">// RISK BREAKDOWN</div>
+          <canvas id="phoneRadar" height="180"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-box-label">// EXPOSURE CATEGORIES</div>
+          <canvas id="phoneBar" height="180"></canvas>
+        </div>
+      </div>
+
+      <div class="findings-card">
+        <div class="findings-title">// FINDINGS & RECOMMENDATIONS</div>
+        ${breachCount>0 ? (matchedBreaches.length > 0 ? matchedBreaches : detectedSources.map(s=>({source:s,date:'Unknown',type:'Data Exposure'}))).map(b=>`
+          <div class="finding-item">
+            <div class="finding-dot" style="background:var(--danger)"></div>
+            <div>
+              <div class="finding-text">${b.source || b}</div>
+              <div class="finding-sub">${b.type || 'Data Exposure'} ${b.date ? '· ' + new Date(b.date).toLocaleDateString('en-US',{year:'numeric',month:'long'}) : ''}</div>
+            </div>
+          </div>`).join('') : ''}
+        <div class="finding-item">
+          <div class="finding-dot" style="background:var(--amber)"></div>
+          <div><div class="finding-text">Use a virtual number for online registrations</div><div class="finding-sub">Services like Google Voice or MySudo protect your real number</div></div>
+        </div>
+        <div class="finding-item">
+          <div class="finding-dot" style="background:var(--accent)"></div>
+          <div><div class="finding-text">Enable SIM PIN lock with your carrier</div><div class="finding-sub">Prevents SIM-swap attacks — contact ${carrier} to set this up</div></div>
+        </div>
+      </div>
+
+      <a href="/ai-advisor.html" class="ai-btn">🤖 Get AI Threat Analysis for this Number →</a>
+    `;
+
+    // Radar chart
+    new Chart(document.getElementById('phoneRadar'),{
+      type:'radar',
+      data:{
+        labels:['Spam Risk','Phishing','Data Broker','SIM Swap','Robocall'],
+        datasets:[{
+          data:[riskScore,Math.min(100,riskScore-10),breachCount*25,isVoIP?20:50,riskScore+5].map(v=>Math.min(100,Math.max(0,v))),
+          backgroundColor:'rgba(0,207,255,0.1)',borderColor:'#00cfff',pointBackgroundColor:'#00cfff',borderWidth:2,pointRadius:4
+        }]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{ticks:{color:'rgba(255,255,255,0.2)',font:{size:9}},grid:{color:'rgba(255,255,255,0.07)'},pointLabels:{color:'rgba(255,255,255,0.45)',font:{family:'IBM Plex Mono',size:9}}}}}
+    });
+
+    // Bar chart
+    new Chart(document.getElementById('phoneBar'),{
+      type:'bar',
+      data:{
+        labels:['Telemarketing','Dark Web','Spam DB','Social Eng.'],
+        datasets:[{data:[riskSeed%40+20,breachCount*30,riskSeed%30+10,riskSeed%25+5],backgroundColor:['rgba(255,71,87,0.6)','rgba(181,122,255,0.6)','rgba(255,204,0,0.6)','rgba(0,207,255,0.6)'],borderRadius:6}]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'rgba(255,255,255,0.35)',font:{size:9}},grid:{color:'rgba(255,255,255,0.04)'}}}}
+    });
+  }
+
+  // ── DOMAIN CHECKER ──
+  async function checkDomain() {
+    const domain = document.getElementById('domainInput').value.trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*/,'');
+    if (!domain) return;
+    const btn = document.getElementById('domBtn');
+    btn.disabled=true; btn.textContent='SCANNING...';
+    const panel = document.getElementById('domainResults');
+    panel.style.display='block';
+    panel.innerHTML = '<div style="text-align:center;padding:40px;font-family:IBM Plex Mono,monospace;font-size:12px;color:rgba(255,255,255,0.3);letter-spacing:2px">SCANNING DOMAIN...</div>';
+
+    // Scan breach DB for emails matching this domain
+    // Call real server route — checks BreachDirectory API + local MongoDB
+    let domainBreaches = 0, affectedEmails = [], apiSource = 'Local DB';
+    try {
+      const apiRes = await fetch('/api/breach/check-domain', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({domain})
+      });
+      const apiData = await apiRes.json();
+      domainBreaches = apiData.breachCount || 0;
+      affectedEmails = [...new Set((apiData.breaches||[]).map(b=>b.email).filter(Boolean))];
+      apiSource = apiData.source || 'Local DB';
+    } catch(e) {
+      // fallback to local only
+      try {
+        const res = await fetch('/api/breach/all');
+        const d = await res.json();
+        const matching = d.breaches.filter(b=>b.email.endsWith('@'+domain));
+        domainBreaches = matching.length;
+        affectedEmails = [...new Set(matching.map(b=>b.email))];
+      } catch(e2) {}
+    }
+
+    await sleep(800);
+    btn.disabled=false; btn.textContent='SCAN DOMAIN';
+
+    const seed = domain.split('').reduce((a,b)=>a+b.charCodeAt(0),0);
+    const isCommon = ['gmail.com','yahoo.com','hotmail.com','outlook.com'].includes(domain);
+    const subdomainRisk = isCommon ? 15 : 45;
+    const riskScore = Math.min(100, domainBreaches*18 + subdomainRisk + (seed%15));
+    const level = riskScore<30?'LOW':riskScore<60?'MEDIUM':'HIGH';
+    const color = {LOW:'#7fff6a',MEDIUM:'#ffcc00',HIGH:'#ff4757'}[level];
+
+    const sources = ['LinkedIn Corporate Scrape','Adobe Creative Cloud','Dropbox Business'];
+    const yearBreakdown = [2020,2021,2022,2023,2024].map(y=>({year:y,count:Math.floor(seed%(y-2018))+( domainBreaches > 0 && y%2===0 ? 1:0)}));
+
+    panel.innerHTML = `
+      <div class="result-hero" style="border-color:${color}40">
+        <div class="result-icon-big">${domainBreaches>0?'🚨':'🏢'}</div>
+        <div>
+          <div class="result-title">${domainBreaches>0?`${domainBreaches} breach record${domainBreaches>1?'s':''} linked to @${domain}`:`No direct records found for @${domain}`}</div>
+          <div class="result-sub">// Domain scan: ${domain}</div>
+          <div class="risk-chip" style="background:${color}18;color:${color};border:1px solid ${color}40">
+            DOMAIN RISK: ${level} · SCORE ${riskScore}/100
+          </div>
+        </div>
+      </div>
+
+      <div class="info-grid">
+        <div class="info-card"><div class="info-card-label">AFFECTED EMAILS</div><div class="info-card-val" style="color:${color}">${affectedEmails.length}</div></div>
+        <div class="info-card"><div class="info-card-label">BREACH RECORDS</div><div class="info-card-val" style="color:${color}">${domainBreaches}</div></div>
+        <div class="info-card"><div class="info-card-label">DOMAIN TYPE</div><div class="info-card-val">${isCommon?'Public Mail':'Corporate'}</div></div>
+      </div>
+
+      ${affectedEmails.length>0?`
+      <div class="findings-card">
+        <div class="findings-title">// EXPOSED EMAIL ADDRESSES ON THIS DOMAIN</div>
+        ${affectedEmails.map(e=>`
+          <div class="finding-item">
+            <div class="finding-dot" style="background:var(--danger)"></div>
+            <div><div class="finding-text" style="font-family:'IBM Plex Mono',monospace;font-size:12px">${e}</div><div class="finding-sub">Found in BreachGuard database</div></div>
+          </div>`).join('')}
+      </div>`:''}
+
+      <div class="chart-row">
+        <div class="chart-box">
+          <div class="chart-box-label">// BREACH YEAR DISTRIBUTION</div>
+          <canvas id="domainLine" height="180"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-box-label">// ATTACK SURFACE ANALYSIS</div>
+          <canvas id="domainRadar" height="180"></canvas>
+        </div>
+      </div>
+
+      <div class="findings-card">
+        <div class="findings-title">// DOMAIN SECURITY RECOMMENDATIONS</div>
+        <div class="finding-item"><div class="finding-dot" style="background:var(--danger)"></div><div><div class="finding-text">Implement DMARC, DKIM &amp; SPF records</div><div class="finding-sub">Prevents email spoofing attacks using your domain</div></div></div>
+        <div class="finding-item"><div class="finding-dot" style="background:var(--amber)"></div><div><div class="finding-text">Audit all email accounts on ${domain}</div><div class="finding-sub">Force password resets for all accounts; enable MFA</div></div></div>
+        <div class="finding-item"><div class="finding-dot" style="background:var(--accent)"></div><div><div class="finding-text">Monitor for credential stuffing attempts</div><div class="finding-sub">Deploy login anomaly detection on your auth system</div></div></div>
+      </div>
+
+      <a href="/ai-advisor.html" class="ai-btn">🤖 Get Full Domain Threat Report →</a>
+    `;
+
+    new Chart(document.getElementById('domainLine'),{
+      type:'line',
+      data:{
+        labels:yearBreakdown.map(y=>y.year),
+        datasets:[{data:yearBreakdown.map(y=>y.count),borderColor:'#ff4757',backgroundColor:'rgba(255,71,87,0.07)',fill:true,tension:0.4,pointBackgroundColor:'#ff4757',pointRadius:5,borderWidth:2}]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'rgba(255,255,255,0.35)',font:{size:9},stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}}}
+    });
+
+    new Chart(document.getElementById('domainRadar'),{
+      type:'radar',
+      data:{
+        labels:['Phishing Target','Data Exposure','Subdomain Risk','Email Spoofing','Credential Leak'],
+        datasets:[{
+          data:[riskScore,Math.min(100,domainBreaches*25+20),subdomainRisk,isCommon?20:60,Math.min(100,domainBreaches*30)],
+          backgroundColor:'rgba(255,71,87,0.1)',borderColor:'#ff4757',pointBackgroundColor:'#ff4757',borderWidth:2,pointRadius:4
+        }]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{ticks:{color:'rgba(255,255,255,0.2)',font:{size:9}},grid:{color:'rgba(255,255,255,0.07)'},pointLabels:{color:'rgba(255,255,255,0.45)',font:{family:'IBM Plex Mono',size:9}}}}}
+    });
+  }
+
+  function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+</script>
+</body>
+</html>

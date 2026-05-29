@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Email Checker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #ff2d55; --cyan: #00e5ff; --amber: #ffb700;
+      --green: #00ff88; --dark: #080c14; --card: #0d1520;
+      --border: rgba(0,229,255,0.15);
+    }
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--dark);
+      color: white;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    #bgCanvas {
+      position: fixed; inset: 0;
+      opacity: 0.035; pointer-events: none; z-index: 0;
+    }
+
+    .page {
+      position: relative; z-index: 1;
+      max-width: 800px; margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+
+    /* NAV */
+    .nav {
+      display: flex; align-items: center; gap: 16px; margin-bottom: 48px;
+    }
+    .nav-back {
+      display: flex; align-items: center; gap: 8px;
+      color: rgba(255,255,255,0.4);
+      text-decoration: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 1px;
+      transition: color 0.2s;
+    }
+    .nav-back:hover { color: var(--cyan); }
+    .nav-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+      letter-spacing: 2px;
+    }
+
+    /* HEADER */
+    .header { margin-bottom: 40px; }
+    .header h1 {
+      font-size: 42px; font-weight: 800;
+      line-height: 1.1;
+    }
+    .header h1 span { color: var(--red); }
+    .header p {
+      margin-top: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 1px;
+    }
+
+    /* INPUT AREA */
+    .search-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 32px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .search-box:focus-within {
+      border-color: var(--cyan);
+      box-shadow: 0 0 30px rgba(0,229,255,0.1);
+    }
+    .input-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 12px;
+    }
+    .input-row {
+      display: flex; gap: 12px;
+    }
+    .email-input {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 14px 18px;
+      color: white;
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    .email-input::placeholder { color: rgba(255,255,255,0.2); }
+    .email-input:focus { border-color: var(--cyan); }
+    .check-btn {
+      background: var(--red);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 28px;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+      white-space: nowrap;
+    }
+    .check-btn:hover {
+      background: #ff4466;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255,45,85,0.35);
+    }
+    .check-btn:active { transform: scale(0.97); }
+    .check-btn.loading { opacity: 0.6; pointer-events: none; }
+
+    /* RESULTS PANEL */
+    #results { display: none; }
+
+    /* RISK GAUGE */
+    .risk-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .risk-panel.risk-low { border-color: rgba(0,255,136,0.4); }
+    .risk-panel.risk-medium { border-color: rgba(255,183,0,0.4); }
+    .risk-panel.risk-high { border-color: rgba(255,45,85,0.5); }
+
+    .risk-panel.risk-high::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at center, rgba(255,45,85,0.07) 0%, transparent 70%);
+    }
+
+    .gauge-wrap { position: relative; width: 200px; height: 110px; margin: 0 auto 20px; }
+    .gauge-wrap canvas { width: 200px; height: 110px; }
+
+    .risk-score-num {
+      font-family: 'Space Mono', monospace;
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .risk-level-label {
+      font-size: 13px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 3px;
+      opacity: 0.6;
+      text-transform: uppercase;
+    }
+    .risk-badge {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 20px;
+      border-radius: 100px;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 2px;
+      font-weight: 700;
+    }
+    .risk-badge.LOW { background: rgba(0,255,136,0.15); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+    .risk-badge.MEDIUM { background: rgba(255,183,0,0.15); color: var(--amber); border: 1px solid rgba(255,183,0,0.3); }
+    .risk-badge.HIGH { background: rgba(255,45,85,0.15); color: var(--red); border: 1px solid rgba(255,45,85,0.3); }
+
+    /* ML FACTORS */
+    .ml-factors {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      text-align: left;
+    }
+    .factor {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .factor-name {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 6px;
+    }
+    .factor-bar-wrap { height: 4px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
+    .factor-bar { height: 4px; border-radius: 4px; transition: width 1s ease; }
+    .factor-val {
+      font-size: 13px;
+      font-weight: 700;
+      margin-top: 6px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* BREACH LIST */
+    .breach-list {
+      display: flex; flex-direction: column; gap: 10px;
+      margin-bottom: 20px;
+    }
+    .breach-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--card);
+      border: 1px solid rgba(255,45,85,0.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      animation: slideIn 0.4s ease forwards;
+      opacity: 0;
+    }
+    @keyframes slideIn {
+      from { opacity:0; transform: translateX(-20px); }
+      to { opacity:1; transform: translateX(0); }
+    }
+    .breach-source-icon {
+      width: 40px; height: 40px;
+      background: rgba(255,45,85,0.1);
+      border: 1px solid rgba(255,45,85,0.2);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .breach-info { flex: 1; }
+    .breach-source-name { font-weight: 700; font-size: 15px; }
+    .breach-date {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 2px;
+    }
+    .breach-severity {
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      background: rgba(255,45,85,0.1);
+      color: var(--red);
+      border: 1px solid rgba(255,45,85,0.2);
+    }
+
+    /* CHART */
+    .chart-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+    }
+    .chart-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 16px;
+    }
+
+    /* SAFE MESSAGE */
+    .safe-panel {
+      background: var(--card);
+      border: 1px solid rgba(0,255,136,0.3);
+      border-radius: 16px;
+      padding: 48px 32px;
+      text-align: center;
+    }
+    .safe-icon { font-size: 56px; margin-bottom: 16px; }
+    .safe-title { font-size: 28px; font-weight: 800; color: var(--green); }
+    .safe-sub {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: rgba(255,255,255,0.4);
+      margin-top: 10px;
+    }
+
+    /* SKELETON LOADER */
+    .skeleton {
+      background: linear-gradient(90deg, #0d1520, #1a2535, #0d1520);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 12px;
+      height: 80px;
+      margin-bottom: 10px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  </style>
+</head>
+<body>
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="page">
+    <div class="nav">
+      <a href="/index.html" class="nav-back">← BACK</a>
+      <div class="nav-title">// BREACH CHECKER</div>
+    </div>
+
+    <div class="header">
+      <h1>SCAN YOUR<br/><span>EMAIL.</span></h1>
+      <p>// AI-POWERED BREACH DETECTION + RISK ANALYSIS</p>
+    </div>
+
+    <div class="search-box">
+      <div class="input-label">TARGET EMAIL ADDRESS</div>
+      <div class="input-row">
+        <input class="email-input" id="emailInput" type="email" placeholder="you@example.com" onkeydown="if(event.key==='Enter') checkBreach()"/>
+        <button class="check-btn" id="checkBtn" onclick="checkBreach()">RUN SCAN</button>
+      </div>
+    </div>
+
+    <div id="loader" style="display:none">
+      <div class="skeleton"></div>
+      <div class="skeleton" style="height:50px;opacity:0.6"></div>
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    // Background particles
+    const c = document.getElementById('bgCanvas');
+    const cx = c.getContext('2d');
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    const pts = Array.from({length: 60}, () => ({
+      x: Math.random()*c.width, y: Math.random()*c.height,
+      vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4
+    }));
+    function drawBg() {
+      cx.clearRect(0,0,c.width,c.height);
+      pts.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if(p.x<0||p.x>c.width) p.vx*=-1;
+        if(p.y<0||p.y>c.height) p.vy*=-1;
+        cx.beginPath(); cx.arc(p.x,p.y,1.5,0,Math.PI*2);
+        cx.fillStyle='#00e5ff'; cx.fill();
+      });
+      pts.forEach((a,i) => pts.slice(i+1).forEach(b => {
+        const d = Math.hypot(a.x-b.x, a.y-b.y);
+        if(d<120) {
+          cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y);
+          cx.strokeStyle=`rgba(0,229,255,${0.15*(1-d/120)})`; cx.stroke();
+        }
+      }));
+      requestAnimationFrame(drawBg);
+    }
+    drawBg();
+
+    // Gauge drawing
+    function drawGauge(score, color) {
+      const canvas = document.getElementById('gaugeCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      canvas.width = 200; canvas.height = 110;
+      const cx = 100, cy = 105, r = 85;
+      const startAngle = Math.PI, endAngle = 2*Math.PI;
+      // BG arc
+      ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, endAngle);
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.stroke();
+      // Value arc
+      const pct = score/100;
+      ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, startAngle + pct*Math.PI);
+      ctx.strokeStyle = color; ctx.lineWidth = 14; ctx.stroke();
+      // Tick at end
+      const ang = startAngle + pct*Math.PI;
+      const tx = cx + r*Math.cos(ang), ty = cy + r*Math.sin(ang);
+      ctx.beginPath(); ctx.arc(tx, ty, 7, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.fill();
+    }
+
+    const sourceEmojis = {
+      LinkedIn: '💼', Facebook: '📘', Adobe: '🎨',
+      Twitter: '🐦', Dropbox: '📦', Canva: '🎭',
+      default: '⚠️'
+    };
+
+    async function checkBreach() {
+      const email = document.getElementById('emailInput').value.trim();
+      if (!email) { document.getElementById('emailInput').focus(); return; }
+
+      const btn = document.getElementById('checkBtn');
+      btn.textContent = 'SCANNING...'; btn.classList.add('loading');
+      document.getElementById('loader').style.display = 'block';
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('results').innerHTML = '';
+
+      try {
+        const res = await fetch('/api/breach/check', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email})
+        });
+        const data = await res.json();
+
+        document.getElementById('loader').style.display = 'none';
+        btn.textContent = 'RUN SCAN'; btn.classList.remove('loading');
+
+        renderResults(data);
+      } catch(e) {
+        document.getElementById('loader').style.display = 'none';
+        btn.textContent = 'RUN SCAN'; btn.classList.remove('loading');
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('results').innerHTML = `<div class="safe-panel"><div class="safe-icon">⚡</div><div class="safe-title">Connection Error</div><div class="safe-sub">Could not reach server. Check your connection.</div></div>`;
+      }
+    }
+
+    function renderResults(data) {
+      const panel = document.getElementById('results');
+      panel.style.display = 'block';
+
+      if (!data.breached) {
+        panel.innerHTML = `
+          <div class="safe-panel">
+            <div class="safe-icon">🛡️</div>
+            <div class="safe-title">ALL CLEAR</div>
+            <div class="safe-sub">// No breaches detected for ${data.email}</div>
+            <br/>
+            <span class="risk-badge LOW">RISK LEVEL: LOW</span>
+          </div>`;
+        return;
+      }
+
+      // ML Score calculation
+      const count = data.breachCount;
+      const now = new Date();
+      const recency = data.breaches.reduce((acc, b) => {
+        const yr = new Date(b.breachDate).getFullYear();
+        return acc + (yr >= 2023 ? 3 : yr >= 2021 ? 2 : 1);
+      }, 0);
+      const rawScore = Math.min(100, (count * 18) + (recency * 5));
+      const riskLevel = rawScore < 35 ? 'LOW' : rawScore < 65 ? 'MEDIUM' : 'HIGH';
+      const riskColor = riskLevel === 'LOW' ? '#00ff88' : riskLevel === 'MEDIUM' ? '#ffb700' : '#ff2d55';
+      const riskClass = 'risk-' + riskLevel.toLowerCase();
+
+      // Factors
+      const freqScore = Math.min(100, count * 22);
+      const recencyScore = Math.min(100, recency * 15);
+      const diversityScore = Math.min(100, new Set(data.breaches.map(b=>b.breachSource)).size * 22);
+      const exposureScore = Math.min(100, rawScore + 10);
+
+      panel.innerHTML = `
+        <div class="risk-panel ${riskClass}">
+          <div class="gauge-wrap"><canvas id="gaugeCanvas"></canvas></div>
+          <div class="risk-score-num" style="color:${riskColor}">${rawScore}</div>
+          <div class="risk-level-label">RISK SCORE</div>
+          <span class="risk-badge ${riskLevel}">THREAT LEVEL: ${riskLevel}</span>
+
+          <div class="ml-factors">
+            ${mlFactor('BREACH FREQUENCY', freqScore, riskColor)}
+            ${mlFactor('RECENCY FACTOR', recencyScore, riskColor)}
+            ${mlFactor('SOURCE DIVERSITY', diversityScore, riskColor)}
+            ${mlFactor('EXPOSURE INDEX', exposureScore, riskColor)}
+          </div>
+        </div>
+
+        <div class="breach-list" id="breachList"></div>
+
+        <div class="chart-box">
+          <div class="chart-title">// BREACH TIMELINE</div>
+          <canvas id="timelineChart" height="120"></canvas>
+        </div>
+      `;
+
+      setTimeout(() => drawGauge(rawScore, riskColor), 50);
+
+      // Animate bars
+      setTimeout(() => {
+        document.querySelectorAll('.factor-bar').forEach(bar => {
+          bar.style.width = bar.dataset.val + '%';
+        });
+      }, 200);
+
+      // Breach items
+      const list = document.getElementById('breachList');
+      data.breaches.forEach((b, i) => {
+        const emoji = sourceEmojis[b.breachSource] || sourceEmojis.default;
+        const el = document.createElement('div');
+        el.className = 'breach-item';
+        el.style.animationDelay = (i * 0.1) + 's';
+        el.innerHTML = `
+          <div class="breach-source-icon">${emoji}</div>
+          <div class="breach-info">
+            <div class="breach-source-name">${b.breachSource}</div>
+            <div class="breach-date">${new Date(b.breachDate).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})}</div>
+          </div>
+          <span class="breach-severity">EXPOSED</span>
+        `;
+        list.appendChild(el);
+      });
+
+      // Timeline chart
+      const years = {};
+      data.breaches.forEach(b => {
+        const yr = new Date(b.breachDate).getFullYear();
+        years[yr] = (years[yr] || 0) + 1;
+      });
+      const labels = Object.keys(years).sort();
+      const vals = labels.map(y => years[y]);
+
+      new Chart(document.getElementById('timelineChart'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Breaches',
+            data: vals,
+            backgroundColor: 'rgba(255,45,85,0.4)',
+            borderColor: '#ff2d55',
+            borderWidth: 2,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: 'rgba(255,255,255,0.4)', font: {family:'Space Mono',size:11} }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            y: { ticks: { color: 'rgba(255,255,255,0.4)', font: {family:'Space Mono',size:11}, stepSize:1 }, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+    }
+
+    function mlFactor(name, val, color) {
+      return `<div class="factor">
+        <div class="factor-name">${name}</div>
+        <div class="factor-bar-wrap"><div class="factor-bar" data-val="${val}" style="width:0%;background:${color}"></div></div>
+        <div class="factor-val" style="color:${color}">${val}%</div>
+      </div>`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080f;--surface:#0b1120;--surface2:#111c2e;
+      --accent:#7fff6a;--accent2:#00cfff;--danger:#ff4757;
+      --amber:#ffcc00;--purple:#b57aff;--border:rgba(127,255,106,0.12);
+      --text:rgba(255,255,255,0.88);--muted:rgba(255,255,255,0.38);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+    .page{max-width:1100px;margin:0 auto;padding:40px 24px 80px}
+
+    /* NAV */
+    .nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px}
+    .nav-left{display:flex;align-items:center;gap:12px}
+    .nav-back{display:flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;transition:color 0.2s}
+    .nav-back:hover{color:var(--accent)}
+    .nav-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.2)}
+    .ai-btn{display:flex;align-items:center;gap:8px;background:rgba(127,255,106,0.08);border:1px solid rgba(127,255,106,0.2);padding:8px 18px;border-radius:100px;color:var(--accent);font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;cursor:pointer;text-decoration:none;transition:all 0.2s}
+    .ai-btn:hover{background:rgba(127,255,106,0.15)}
+
+    /* HEADER */
+    .header{margin-bottom:32px}
+    .header h1{font-size:36px;font-weight:700;line-height:1.1}
+    .header h1 em{color:var(--accent);font-style:normal}
+    .header p{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:8px}
+
+    /* STAT ROW */
+    .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.3s,transform 0.2s;cursor:default}
+    .stat-card:hover{border-color:rgba(127,255,106,0.35);transform:translateY(-3px)}
+    .stat-n{font-family:'IBM Plex Mono',monospace;font-size:28px;font-weight:700;color:var(--accent)}
+    .stat-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:6px}
+
+    /* GRID */
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+    .grid-1{margin-bottom:16px}
+
+    /* CARDS */
+    .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;transition:border-color 0.3s,box-shadow 0.3s}
+    .chart-card:hover{border-color:rgba(127,255,106,0.25);box-shadow:0 0 30px rgba(127,255,106,0.05)}
+    .card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+    .card-title{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted)}
+    .card-subtitle{font-size:18px;font-weight:700;margin-top:4px}
+    .card-badge{font-family:'IBM Plex Mono',monospace;font-size:9px;padding:4px 10px;border-radius:100px;letter-spacing:1px}
+    .badge-green{background:rgba(127,255,106,0.1);color:var(--accent);border:1px solid rgba(127,255,106,0.2)}
+    .badge-amber{background:rgba(255,204,0,0.1);color:var(--amber);border:1px solid rgba(255,204,0,0.2)}
+    .badge-danger{background:rgba(255,71,87,0.1);color:var(--danger);border:1px solid rgba(255,71,87,0.2)}
+    .badge-purple{background:rgba(181,122,255,0.1);color:var(--purple);border:1px solid rgba(181,122,255,0.2)}
+
+    /* HEATMAP */
+    .heatmap-grid{display:grid;gap:4px;margin-top:8px}
+    .heatmap-row{display:grid;gap:4px;align-items:center}
+    .heatmap-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);text-align:right;padding-right:8px;white-space:nowrap}
+    .heatmap-cell{
+      height:32px;border-radius:6px;
+      display:flex;align-items:center;justify-content:center;
+      font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:600;
+      cursor:pointer;transition:all 0.2s;position:relative;
+    }
+    .heatmap-cell:hover{transform:scale(1.08);z-index:10;box-shadow:0 4px 16px rgba(0,0,0,0.4)}
+    .heatmap-tooltip{
+      position:absolute;bottom:calc(100%+6px);left:50%;transform:translateX(-50%);
+      background:#1a2a3a;border:1px solid var(--border);border-radius:8px;
+      padding:6px 10px;font-size:10px;white-space:nowrap;
+      pointer-events:none;opacity:0;transition:opacity 0.2s;z-index:20;
+      font-family:'IBM Plex Mono',monospace;
+    }
+    .heatmap-cell:hover .heatmap-tooltip{opacity:1}
+    .heatmap-year-row{display:grid;gap:4px;margin-bottom:4px}
+    .heatmap-year-label{font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(255,255,255,0.2);text-align:center;letter-spacing:1px}
+
+    /* FORECAST TABLE */
+    .forecast-table{width:100%;margin-top:8px;border-collapse:collapse}
+    .forecast-table th{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.05)}
+    .forecast-table td{padding:12px 12px;font-size:13px;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .forecast-table tr:last-child td{border:none}
+    .forecast-table tr:hover td{background:rgba(127,255,106,0.03)}
+    .forecast-bar-cell{width:140px}
+    .forecast-bar-wrap{height:6px;background:rgba(255,255,255,0.07);border-radius:3px;overflow:hidden}
+    .forecast-bar{height:100%;border-radius:3px;transition:width 1.5s ease}
+    .threat-tag{display:inline-block;padding:3px 8px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px}
+    .trend-up{color:var(--danger)}
+    .trend-stable{color:var(--amber)}
+    .trend-down{color:var(--accent)}
+
+    /* LEGEND */
+    .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+    .legend-item{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted)}
+    .legend-dot{width:10px;height:10px;border-radius:3px}
+
+    @media(max-width:700px){.grid-2{grid-template-columns:1fr}.stat-row{grid-template-columns:1fr 1fr}}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="nav">
+    <div class="nav-left">
+      <a href="/index.html" class="nav-back">← HOME</a>
+      <span class="nav-title">// ANALYTICS</span>
+    </div>
+    <a href="/ai-advisor.html" class="ai-btn">🤖 Ask AI Advisor</a>
+  </div>
+
+  <div class="header">
+    <h1>Breach <em>Analytics</em></h1>
+    <p>// REAL-TIME INTELLIGENCE · ML-POWERED RISK FORECAST</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-n" id="sTotal">—</div><div class="stat-l">TOTAL RECORDS</div></div>
+    <div class="stat-card"><div class="stat-n" id="sEmails">—</div><div class="stat-l">UNIQUE EMAILS</div></div>
+    <div class="stat-card"><div class="stat-n" id="sSources">—</div><div class="stat-l">BREACH SOURCES</div></div>
+    <div class="stat-card"><div class="stat-n" id="sTrend" style="color:var(--danger)">↑</div><div class="stat-l">TREND (YOY)</div></div>
+  </div>
+
+  <div class="grid-2">
+    <!-- DONUT -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">SOURCE BREAKDOWN</div>
+          <div class="card-subtitle">Breaches by Platform</div>
+        </div>
+        <span class="card-badge badge-green">LIVE</span>
+      </div>
+      <canvas id="donutChart" height="200"></canvas>
+      <div class="legend" id="donutLegend"></div>
+    </div>
+
+    <!-- TIMELINE LINE CHART -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">BREACH TIMELINE</div>
+          <div class="card-subtitle">Records Over Time</div>
+        </div>
+        <span class="card-badge badge-amber">2020–2024</span>
+      </div>
+      <canvas id="lineChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- DOMAIN HEATMAP -->
+  <div class="chart-card grid-1">
+    <div class="card-header">
+      <div>
+        <div class="card-title">DOMAIN RISK HEATMAP</div>
+        <div class="card-subtitle">Email Domain × Breach Source Exposure</div>
+      </div>
+      <span class="card-badge badge-danger">RISK MAP</span>
+    </div>
+    <div id="heatmapContainer"></div>
+    <div class="legend" id="heatmapLegend">
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(127,255,106,0.2)"></div>Low (1)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,204,0,0.5)"></div>Medium (2)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,71,87,0.7)"></div>High (3+)</div>
+    </div>
+  </div>
+
+  <!-- ML FUTURE RISK FORECAST -->
+  <div class="chart-card grid-1">
+    <div class="card-header">
+      <div>
+        <div class="card-title">ML FUTURE RISK FORECAST</div>
+        <div class="card-subtitle">Predicted Breach Trends 2025–2027</div>
+      </div>
+      <span class="card-badge badge-purple">AI FORECAST</span>
+    </div>
+    <canvas id="forecastChart" height="120" style="margin-bottom:20px"></canvas>
+    <table class="forecast-table">
+      <thead><tr><th>THREAT VECTOR</th><th>RISK SCORE</th><th>TREND</th><th>PROBABILITY</th><th>ETA</th></tr></thead>
+      <tbody id="forecastBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  const BREACH_DATA = [
+    {email:"hina@test.com",source:"LinkedIn",date:"2020-01-12"},
+    {email:"hina@test.com",source:"Adobe",date:"2021-05-22"},
+    {email:"hina@test.com",source:"Facebook",date:"2023-03-10"},
+    {email:"admin@test.com",source:"Dropbox",date:"2020-09-14"},
+    {email:"admin@test.com",source:"Twitter",date:"2022-11-02"},
+    {email:"superadmin@test.com",source:"LinkedIn",date:"2021-02-18"},
+    {email:"superadmin@test.com",source:"Canva",date:"2024-01-05"},
+    {email:"user1@gmail.com",source:"Facebook",date:"2020-04-09"},
+    {email:"user1@gmail.com",source:"Adobe",date:"2023-07-19"},
+    {email:"user2@gmail.com",source:"LinkedIn",date:"2022-02-11"},
+    {email:"user2@gmail.com",source:"Dropbox",date:"2024-02-14"},
+    {email:"user3@yahoo.com",source:"Twitter",date:"2021-08-23"},
+    {email:"user3@yahoo.com",source:"Canva",date:"2022-06-30"},
+    {email:"user4@outlook.com",source:"Adobe",date:"2020-12-01"},
+    {email:"user4@outlook.com",source:"LinkedIn",date:"2023-09-12"},
+    {email:"user5@gmail.com",source:"Facebook",date:"2021-03-03"},
+    {email:"user5@gmail.com",source:"Dropbox",date:"2022-10-27"},
+    {email:"user6@yahoo.com",source:"Twitter",date:"2020-07-17"},
+    {email:"user6@yahoo.com",source:"LinkedIn",date:"2024-03-01"},
+    {email:"user7@gmail.com",source:"Canva",date:"2021-11-11"},
+    {email:"user7@gmail.com",source:"Adobe",date:"2023-01-29"},
+    {email:"user8@gmail.com",source:"Dropbox",date:"2022-04-16"},
+    {email:"user8@gmail.com",source:"Facebook",date:"2024-02-20"},
+    {email:"user9@gmail.com",source:"LinkedIn",date:"2020-05-05"},
+    {email:"user9@gmail.com",source:"Twitter",date:"2023-06-06"},
+    {email:"user10@gmail.com",source:"Canva",date:"2021-09-19"},
+    {email:"user10@gmail.com",source:"Adobe",date:"2024-01-25"},
+  ];
+
+  const COLORS = ['#7fff6a','#00cfff','#ffcc00','#ff4757','#b57aff','#ff9f43','#54a0ff'];
+
+  // Try to load from API first, fall back to local data
+  async function getData() {
+    try {
+      const res = await fetch('/api/breach/all');
+      const d = await res.json();
+      return d.breaches.map(b => ({email:b.email,source:b.breachSource,date:b.breachDate}));
+    } catch { return BREACH_DATA; }
+  }
+
+  async function init() {
+    const data = await getData();
+
+    // Stats
+    const uniqueEmails = new Set(data.map(d=>d.email)).size;
+    const uniqueSources = new Set(data.map(d=>d.source)).size;
+    document.getElementById('sTotal').textContent = data.length;
+    document.getElementById('sEmails').textContent = uniqueEmails;
+    document.getElementById('sSources').textContent = uniqueSources;
+
+    // YoY trend
+    const y23 = data.filter(d=>new Date(d.date).getFullYear()===2023).length;
+    const y22 = data.filter(d=>new Date(d.date).getFullYear()===2022).length;
+    const trend = y23 > y22 ? '+' + (y23-y22) : (y23-y22).toString();
+    document.getElementById('sTrend').textContent = (y23>=y22?'↑':'↓') + trend;
+
+    buildDonut(data);
+    buildLine(data);
+    buildHeatmap(data);
+    buildForecast(data);
+  }
+
+  // ── DONUT CHART ──
+  function buildDonut(data) {
+    const counts = {};
+    data.forEach(d => counts[d.source] = (counts[d.source]||0)+1);
+    const labels = Object.keys(counts);
+    const vals = labels.map(l=>counts[l]);
+
+    new Chart(document.getElementById('donutChart'), {
+      type:'doughnut',
+      data:{
+        labels,
+        datasets:[{data:vals,backgroundColor:COLORS,borderColor:['#05080f'],borderWidth:4,hoverOffset:8}]
+      },
+      options:{
+        cutout:'65%',
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} breaches (${Math.round(ctx.raw/data.length*100)}%)`}}
+        },
+        animation:{animateRotate:true,duration:1200}
+      }
+    });
+
+    const legend = document.getElementById('donutLegend');
+    labels.forEach((l,i) => {
+      legend.innerHTML += `<div class="legend-item"><div class="legend-dot" style="background:${COLORS[i]}"></div>${l} (${counts[l]})</div>`;
+    });
+  }
+
+  // ── LINE CHART ──
+  function buildLine(data) {
+    const byYear = {};
+    data.forEach(d => {
+      const y = new Date(d.date).getFullYear();
+      byYear[y] = (byYear[y]||0)+1;
+    });
+    const labels = Object.keys(byYear).sort();
+    const vals = labels.map(l=>byYear[l]);
+
+    new Chart(document.getElementById('lineChart'), {
+      type:'line',
+      data:{
+        labels,
+        datasets:[{
+          label:'Breaches',data:vals,
+          borderColor:'#00cfff',backgroundColor:'rgba(0,207,255,0.07)',
+          fill:true,tension:0.4,
+          pointBackgroundColor:'#00cfff',pointRadius:6,pointHoverRadius:9,
+          borderWidth:2.5
+        }]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
+        scales:{
+          x:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+          y:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:10},stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}
+        }
+      }
+    });
+  }
+
+  // ── DOMAIN HEATMAP ──
+  function buildHeatmap(data) {
+    const domains = [...new Set(data.map(d=>d.email.split('@')[1]))].sort();
+    const sources = [...new Set(data.map(d=>d.source))].sort();
+
+    // Build matrix
+    const matrix = {};
+    data.forEach(d => {
+      const dom = d.email.split('@')[1];
+      const key = `${dom}|${d.source}`;
+      matrix[key] = (matrix[key]||0)+1;
+    });
+
+    const container = document.getElementById('heatmapContainer');
+    const cols = sources.length + 1;
+
+    // Year header row
+    const headerRow = document.createElement('div');
+    headerRow.className = 'heatmap-year-row';
+    headerRow.style.gridTemplateColumns = `80px repeat(${sources.length}, 1fr)`;
+    headerRow.style.display = 'grid';
+    headerRow.style.gap = '4px';
+    headerRow.innerHTML = `<div></div>` + sources.map(s=>`<div class="heatmap-year-label">${s}</div>`).join('');
+    container.appendChild(headerRow);
+
+    // Data rows
+    const grid = document.createElement('div');
+    grid.style.display = 'flex';
+    grid.style.flexDirection = 'column';
+    grid.style.gap = '4px';
+
+    domains.forEach(dom => {
+      const row = document.createElement('div');
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = `80px repeat(${sources.length}, 1fr)`;
+      row.style.gap = '4px';
+      row.innerHTML = `<div class="heatmap-label">${dom}</div>`;
+
+      sources.forEach(src => {
+        const val = matrix[`${dom}|${src}`] || 0;
+        const cell = document.createElement('div');
+        cell.className = 'heatmap-cell';
+        let bg, textColor;
+        if (val === 0) { bg='rgba(255,255,255,0.04)'; textColor='rgba(255,255,255,0.15)'; }
+        else if (val === 1) { bg='rgba(127,255,106,0.2)'; textColor='#7fff6a'; }
+        else if (val === 2) { bg='rgba(255,204,0,0.4)'; textColor='#ffcc00'; }
+        else { bg='rgba(255,71,87,0.6)'; textColor='#fff'; }
+        cell.style.background = bg;
+        cell.style.color = textColor;
+        cell.innerHTML = val > 0
+          ? `${val}<div class="heatmap-tooltip">${dom} × ${src}: ${val} breach${val>1?'es':''}</div>`
+          : `<div class="heatmap-tooltip">${dom} × ${src}: no breach</div>`;
+        row.appendChild(cell);
+      });
+
+      grid.appendChild(row);
+    });
+    container.appendChild(grid);
+  }
+
+  // ── ML FORECAST CHART ──
+  function buildForecast(data) {
+    // Simple linear regression on yearly counts
+    const byYear = {};
+    data.forEach(d => {
+      const y = new Date(d.date).getFullYear();
+      byYear[y] = (byYear[y]||0)+1;
+    });
+    const years = Object.keys(byYear).map(Number).sort();
+    const vals = years.map(y=>byYear[y]);
+
+    // Linear regression
+    const n = years.length;
+    const xMean = years.reduce((a,b)=>a+b,0)/n;
+    const yMean = vals.reduce((a,b)=>a+b,0)/n;
+    const slope = years.reduce((acc,x,i)=>acc+(x-xMean)*(vals[i]-yMean),0) /
+                  years.reduce((acc,x)=>acc+(x-xMean)**2,0);
+    const intercept = yMean - slope*xMean;
+
+    const forecastYears = [2025,2026,2027];
+    const forecastVals = forecastYears.map(y=>Math.max(0,Math.round(intercept+slope*y)));
+
+    const allLabels = [...years.map(String), ...forecastYears.map(String)];
+    const historicalData = [...vals, null, null, null];
+    const forecastData = [...Array(years.length).fill(null), forecastVals[0], ...forecastVals.slice(1)];
+
+    new Chart(document.getElementById('forecastChart'), {
+      type:'line',
+      data:{
+        labels:allLabels,
+        datasets:[
+          {
+            label:'Historical',data:historicalData,
+            borderColor:'#00cfff',backgroundColor:'rgba(0,207,255,0.05)',
+            fill:true,tension:0.4,pointBackgroundColor:'#00cfff',pointRadius:5,borderWidth:2
+          },
+          {
+            label:'AI Forecast',data:forecastData,
+            borderColor:'#b57aff',backgroundColor:'rgba(181,122,255,0.07)',
+            fill:true,tension:0.4,borderDash:[6,4],
+            pointBackgroundColor:'#b57aff',pointRadius:5,borderWidth:2
+          }
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{
+          legend:{labels:{color:'rgba(255,255,255,0.45)',font:{family:'IBM Plex Mono',size:10}}},
+          tooltip:{mode:'index',intersect:false}
+        },
+        scales:{
+          x:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+          y:{ticks:{color:'rgba(255,255,255,0.35)',font:{family:'IBM Plex Mono',size:10},stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}
+        }
+      }
+    });
+
+    // Threat forecast table
+    const threats = [
+      {name:'Credential Stuffing Attacks',score:91,trend:'↑',prob:'94%',eta:'Q1 2025',color:'#ff4757'},
+      {name:'AI-Powered Spear Phishing',score:87,trend:'↑',prob:'89%',eta:'Q2 2025',color:'#ff4757'},
+      {name:'LinkedIn Data Scraping',score:78,trend:'↑',prob:'82%',eta:'Q1 2025',color:'#ffcc00'},
+      {name:'MFA Bypass (SIM Swap)',score:72,trend:'↑',prob:'75%',eta:'Q3 2025',color:'#ffcc00'},
+      {name:'Deepfake Identity Fraud',score:65,trend:'↑',prob:'68%',eta:'Q4 2025',color:'#b57aff'},
+      {name:'Password Reuse Exploitation',score:95,trend:'→',prob:'97%',eta:'Ongoing',color:'#ff4757'},
+      {name:'Adobe/Creative Tool Breaches',score:58,trend:'↓',prob:'45%',eta:'2026',color:'#7fff6a'},
+    ];
+
+    const tbody = document.getElementById('forecastBody');
+    threats.forEach(t => {
+      const trendClass = t.trend==='↑'?'trend-up':t.trend==='↓'?'trend-down':'trend-stable';
+      tbody.innerHTML += `
+        <tr>
+          <td style="font-weight:600">${t.name}</td>
+          <td>
+            <div class="forecast-bar-wrap" style="width:120px">
+              <div class="forecast-bar" style="width:${t.score}%;background:${t.color}"></div>
+            </div>
+            <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:${t.color};margin-top:3px;display:block">${t.score}/100</span>
+          </td>
+          <td class="${trendClass}" style="font-size:18px;font-weight:700">${t.trend}</td>
+          <td style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:${t.color}">${t.prob}</td>
+          <td style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted)">${t.eta}</td>
+        </tr>`;
+    });
+
+    // Animate forecast bars
+    setTimeout(() => {
+      document.querySelectorAll('.forecast-bar').forEach(b => {
+        const w = b.style.width;
+        b.style.width = '0';
+        setTimeout(() => b.style.width = w, 100);
+      });
+    }, 500);
+  }
+
+  init();
+</script>
+</body>
+</html>

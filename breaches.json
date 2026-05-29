@@ -1,0 +1,41 @@
+[
+  { "email": "hina@test.com", "breachSource": "LinkedIn", "breachDate": "2020-01-12T00:00:00.000Z" },
+  { "email": "hina@test.com", "breachSource": "Adobe", "breachDate": "2021-05-22T00:00:00.000Z" },
+  { "email": "hina@test.com", "breachSource": "Facebook", "breachDate": "2023-03-10T00:00:00.000Z" },
+
+  { "email": "admin@test.com", "breachSource": "Dropbox", "breachDate": "2020-09-14T00:00:00.000Z" },
+  { "email": "admin@test.com", "breachSource": "Twitter", "breachDate": "2022-11-02T00:00:00.000Z" },
+
+  { "email": "superadmin@test.com", "breachSource": "LinkedIn", "breachDate": "2021-02-18T00:00:00.000Z" },
+  { "email": "superadmin@test.com", "breachSource": "Canva", "breachDate": "2024-01-05T00:00:00.000Z" },
+
+  { "email": "user1@gmail.com", "breachSource": "Facebook", "breachDate": "2020-04-09T00:00:00.000Z" },
+  { "email": "user1@gmail.com", "breachSource": "Adobe", "breachDate": "2023-07-19T00:00:00.000Z" },
+
+  { "email": "user2@gmail.com", "breachSource": "LinkedIn", "breachDate": "2022-02-11T00:00:00.000Z" },
+  { "email": "user2@gmail.com", "breachSource": "Dropbox", "breachDate": "2024-02-14T00:00:00.000Z" },
+
+  { "email": "user3@yahoo.com", "breachSource": "Twitter", "breachDate": "2021-08-23T00:00:00.000Z" },
+  { "email": "user3@yahoo.com", "breachSource": "Canva", "breachDate": "2022-06-30T00:00:00.000Z" },
+
+  { "email": "user4@outlook.com", "breachSource": "Adobe", "breachDate": "2020-12-01T00:00:00.000Z" },
+  { "email": "user4@outlook.com", "breachSource": "LinkedIn", "breachDate": "2023-09-12T00:00:00.000Z" },
+
+  { "email": "user5@gmail.com", "breachSource": "Facebook", "breachDate": "2021-03-03T00:00:00.000Z" },
+  { "email": "user5@gmail.com", "breachSource": "Dropbox", "breachDate": "2022-10-27T00:00:00.000Z" },
+
+  { "email": "user6@yahoo.com", "breachSource": "Twitter", "breachDate": "2020-07-17T00:00:00.000Z" },
+  { "email": "user6@yahoo.com", "breachSource": "LinkedIn", "breachDate": "2024-03-01T00:00:00.000Z" },
+
+  { "email": "user7@gmail.com", "breachSource": "Canva", "breachDate": "2021-11-11T00:00:00.000Z" },
+  { "email": "user7@gmail.com", "breachSource": "Adobe", "breachDate": "2023-01-29T00:00:00.000Z" },
+
+  { "email": "user8@gmail.com", "breachSource": "Dropbox", "breachDate": "2022-04-16T00:00:00.000Z" },
+  { "email": "user8@gmail.com", "breachSource": "Facebook", "breachDate": "2024-02-20T00:00:00.000Z" },
+
+  { "email": "user9@gmail.com", "breachSource": "LinkedIn", "breachDate": "2020-05-05T00:00:00.000Z" },
+  { "email": "user9@gmail.com", "breachSource": "Twitter", "breachDate": "2023-06-06T00:00:00.000Z" },
+
+  { "email": "user10@gmail.com", "breachSource": "Canva", "breachDate": "2021-09-19T00:00:00.000Z" },
+  { "email": "user10@gmail.com", "breachSource": "Adobe", "breachDate": "2024-01-25T00:00:00.000Z" }
+]

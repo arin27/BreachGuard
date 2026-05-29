@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Know Before It's Too Late</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080f;--surface:#0b1120;
+      --green:#7fff6a;--cyan:#00cfff;--red:#ff4757;
+      --amber:#ffcc00;--purple:#b57aff;
+      --border:rgba(127,255,106,0.1);--muted:rgba(255,255,255,0.38);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:rgba(255,255,255,0.88);min-height:100vh;overflow-x:hidden}
+    #matrix{position:fixed;inset:0;opacity:0.03;pointer-events:none;z-index:0}
+    body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(127,255,106,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(127,255,106,0.02) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+    .scanline{position:fixed;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(127,255,106,0.3),transparent);animation:scan 6s linear infinite;pointer-events:none;z-index:1}
+    @keyframes scan{0%{top:-2px}100%{top:100vh}}
+    .wrapper{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:60px 24px 80px}
+    .badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(127,255,106,0.2);background:rgba(127,255,106,0.05);padding:6px 16px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--green);margin-bottom:32px;animation:fadeDown 0.7s ease}
+    .badge-dot{width:6px;height:6px;background:var(--red);border-radius:50%;animation:pulse 1.5s ease infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    .hero{margin-bottom:40px;animation:fadeUp 0.8s ease}
+    .hero h1{font-size:clamp(52px,10vw,96px);font-weight:800;line-height:0.95;letter-spacing:-2px}
+    .accent{color:var(--green)}.accent2{color:var(--cyan)}
+    .hero-sub{margin-top:20px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:1px;line-height:1.8;max-width:520px}
+    .stats{display:flex;border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:36px;animation:fadeUp 0.8s ease 0.1s both}
+    .stat{flex:1;padding:18px 20px;border-right:1px solid var(--border);text-align:center}
+    .stat:last-child{border-right:none}
+    .stat-n{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:700;color:var(--green)}
+    .stat-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:4px}
+    .main-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;animation:fadeUp 0.8s ease 0.2s both}
+    .sub-cards{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;animation:fadeUp 0.8s ease 0.3s both}
+    .card{background:var(--surface);border:1px solid rgba(255,255,255,0.07);border-radius:18px;padding:26px 22px;text-decoration:none;color:rgba(255,255,255,0.88);overflow:hidden;position:relative;transition:border-color 0.3s,transform 0.25s,box-shadow 0.3s}
+    .card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at var(--mx,50%) var(--my,50%),var(--glow,rgba(127,255,106,0.08)) 0%,transparent 65%);opacity:0;transition:opacity 0.3s}
+    .card:hover::before{opacity:1}
+    .card:hover{transform:translateY(-4px)}
+    .c-green{--glow:rgba(127,255,106,0.09)}.c-green:hover{border-color:rgba(127,255,106,0.4);box-shadow:0 20px 48px rgba(0,0,0,0.5),0 0 40px rgba(127,255,106,0.08)}
+    .c-cyan{--glow:rgba(0,207,255,0.09)}.c-cyan:hover{border-color:rgba(0,207,255,0.4);box-shadow:0 20px 48px rgba(0,0,0,0.5),0 0 40px rgba(0,207,255,0.08)}
+    .c-red{--glow:rgba(255,71,87,0.09)}.c-red:hover{border-color:rgba(255,71,87,0.4);box-shadow:0 20px 48px rgba(0,0,0,0.5),0 0 40px rgba(255,71,87,0.08)}
+    .c-purple{--glow:rgba(181,122,255,0.09)}.c-purple:hover{border-color:rgba(181,122,255,0.4);box-shadow:0 20px 48px rgba(0,0,0,0.5),0 0 40px rgba(181,122,255,0.08)}
+    .c-amber{--glow:rgba(255,204,0,0.09)}.c-amber:hover{border-color:rgba(255,204,0,0.4)}
+    .card-icon{font-size:28px;margin-bottom:12px;display:block}
+    .card-title{font-size:16px;font-weight:700;margin-bottom:5px}
+    .card-desc{font-size:11px;color:var(--muted);line-height:1.6;font-family:'IBM Plex Mono',monospace}
+    .card-tag{display:inline-block;margin-top:10px;padding:3px 10px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px}
+    .tag-green{background:rgba(127,255,106,0.1);color:var(--green);border:1px solid rgba(127,255,106,0.2)}
+    .tag-cyan{background:rgba(0,207,255,0.1);color:var(--cyan);border:1px solid rgba(0,207,255,0.2)}
+    .tag-red{background:rgba(255,71,87,0.1);color:var(--red);border:1px solid rgba(255,71,87,0.2)}
+    .tag-purple{background:rgba(181,122,255,0.1);color:var(--purple);border:1px solid rgba(181,122,255,0.2)}
+    .tag-amber{background:rgba(255,204,0,0.1);color:var(--amber);border:1px solid rgba(255,204,0,0.2)}
+    .card-arrow{position:absolute;bottom:18px;right:18px;opacity:0;transform:translate(-4px,4px);transition:all 0.3s;font-size:15px}
+    .card:hover .card-arrow{opacity:1;transform:translate(0,0)}
+    .c-green .card-arrow{color:var(--green)}.c-cyan .card-arrow{color:var(--cyan)}.c-red .card-arrow{color:var(--red)}.c-purple .card-arrow{color:var(--purple)}.c-amber .card-arrow{color:var(--amber)}
+    .new-pill{position:absolute;top:13px;right:13px;background:rgba(181,122,255,0.15);border:1px solid rgba(181,122,255,0.3);color:var(--purple);font-family:'IBM Plex Mono',monospace;font-size:8px;letter-spacing:2px;padding:2px 8px;border-radius:100px}
+    .footer{margin-top:40px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,0.14);letter-spacing:1px;animation:fadeUp 0.8s ease 0.4s both}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+    @media(max-width:700px){.main-cards{grid-template-columns:1fr}.sub-cards{grid-template-columns:1fr 1fr}.stats{flex-wrap:wrap}.stat{min-width:50%;border-bottom:1px solid var(--border)}}
+  </style>
+</head>
+<body>
+  <div class="scanline"></div>
+  <canvas id="matrix"></canvas>
+  <div class="wrapper">
+    <div class="badge"><div class="badge-dot"></div>SYSTEM ACTIVE — v2.0 + AGENTIC AI</div>
+    <div class="hero">
+      <h1><span class="accent">BREACH</span><br/><span class="accent2">GUARD</span></h1>
+      <p class="hero-sub">// AI-powered breach intelligence platform.<br/>Email · Phone · Domain · Digital Identity scanning.<br/>Agentic AI advisor with real-time threat forecasting.</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-n">28</div><div class="stat-l">BREACH RECORDS</div></div>
+      <div class="stat"><div class="stat-n">6</div><div class="stat-l">DATA SOURCES</div></div>
+      <div class="stat"><div class="stat-n">10</div><div class="stat-l">EXPOSED EMAILS</div></div>
+      <div class="stat"><div class="stat-n">7</div><div class="stat-l">SCAN TYPES</div></div>
+    </div>
+    <div class="main-cards">
+      <a class="card c-red" href="/checker.html">
+        <span class="card-icon">🔍</span>
+        <div class="card-title">Email Checker</div>
+        <div class="card-desc">ML risk score + breach timeline chart.</div>
+        <span class="card-tag tag-red">ML SCORING</span>
+        <div class="card-arrow">→</div>
+      </a>
+      <a class="card c-purple" href="/ai-advisor.html">
+        <div class="new-pill">NEW</div>
+        <span class="card-icon">🤖</span>
+        <div class="card-title">AI Security Advisor</div>
+        <div class="card-desc">Agentic AI: auto-scan, advise, forecast future attacks.</div>
+        <span class="card-tag tag-purple">AGENTIC AI</span>
+        <div class="card-arrow">→</div>
+      </a>
+      <a class="card c-cyan" href="/footprint.html">
+        <div class="new-pill">UNIQUE</div>
+        <span class="card-icon">👤</span>
+        <div class="card-title">Digital Footprint</div>
+        <div class="card-desc">Shadow Profile Risk Score for your full identity.</div>
+        <span class="card-tag tag-cyan">IDENTITY SCORE</span>
+        <div class="card-arrow">→</div>
+      </a>
+    </div>
+    <div class="sub-cards">
+      <a class="card c-cyan" href="/phone-checker.html">
+        <span class="card-icon">📞</span>
+        <div class="card-title">Phone Checker</div>
+        <div class="card-desc">Scan phone for breach exposure + radar chart.</div>
+        <span class="card-tag tag-cyan">NEW</span>
+        <div class="card-arrow">→</div>
+      </a>
+      <a class="card c-cyan" href="/phone-checker.html#domain">
+        <span class="card-icon">🏢</span>
+        <div class="card-title">Domain Checker</div>
+        <div class="card-desc">Scan @company.com emails for corporate leaks.</div>
+        <span class="card-tag tag-cyan">NEW</span>
+        <div class="card-arrow">→</div>
+      </a>
+      <a class="card c-amber" href="/analytics.html">
+        <span class="card-icon">📊</span>
+        <div class="card-title">Analytics</div>
+        <div class="card-desc">Heatmap · Donut · ML forecast 2025–2027.</div>
+        <span class="card-tag tag-amber">3 GRAPH TYPES</span>
+        <div class="card-arrow">→</div>
+      </a>
+      <a class="card c-green" href="/breaches.html">
+        <span class="card-icon">📡</span>
+        <div class="card-title">Breach DB</div>
+        <div class="card-desc">All breach records with live analytics.</div>
+        <span class="card-tag tag-green">LIVE</span>
+        <div class="card-arrow">→</div>
+      </a>
+    </div>
+    <div class="footer">© 2025 BREACHGUARD SYSTEM · AGENTIC AI · THREAT INTELLIGENCE · ALL DATA ENCRYPTED</div>
+  </div>
+  <script>
+    const cv=document.getElementById('matrix'),ctx=cv.getContext('2d');
+    cv.width=window.innerWidth;cv.height=window.innerHeight;
+    const cols=Math.floor(cv.width/16),drops=Array(cols).fill(1);
+    const chars='01アイウBREACHGUARDカキクケコ';
+    function draw(){ctx.fillStyle='rgba(5,8,15,0.05)';ctx.fillRect(0,0,cv.width,cv.height);ctx.fillStyle='#7fff6a';ctx.font='12px monospace';drops.forEach((y,i)=>{ctx.fillText(chars[Math.floor(Math.random()*chars.length)],i*16,y*16);if(y*16>cv.height&&Math.random()>0.975)drops[i]=0;drops[i]++})}
+    setInterval(draw,55);
+    window.addEventListener('resize',()=>{cv.width=window.innerWidth;cv.height=window.innerHeight});
+    document.querySelectorAll('.card').forEach(c=>{c.addEventListener('mousemove',e=>{const r=c.getBoundingClientRect();c.style.setProperty('--mx',((e.clientX-r.left)/r.width*100).toFixed(1)+'%');c.style.setProperty('--my',((e.clientY-r.top)/r.height*100).toFixed(1)+'%')})});
+  </script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Recent Breaches</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #ff2d55; --cyan: #00e5ff; --dark: #080c14;
+      --card: #0d1520; --border: rgba(0,229,255,0.15);
+    }
+    body { font-family:'Syne',sans-serif; background:var(--dark); color:white; min-height:100vh; }
+
+    .page { max-width:1000px; margin:0 auto; padding:48px 24px 80px; }
+
+    .nav { display:flex; align-items:center; gap:16px; margin-bottom:48px; }
+    .nav-back { display:flex; align-items:center; gap:8px; color:rgba(255,255,255,0.4); text-decoration:none; font-family:'Space Mono',monospace; font-size:12px; letter-spacing:1px; transition:color 0.2s; }
+    .nav-back:hover { color:var(--cyan); }
+
+    .header { margin-bottom:36px; }
+    .header h1 { font-size:42px; font-weight:800; }
+    .header h1 span { color:var(--red); }
+    .header p { margin-top:10px; font-family:'Space Mono',monospace; font-size:12px; color:rgba(255,255,255,0.35); letter-spacing:1px; }
+
+    /* STAT CARDS */
+    .stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+    .stat-card {
+      background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px;
+      transition: border-color 0.3s, transform 0.2s, box-shadow 0.3s;
+      cursor:default;
+    }
+    .stat-card:hover { border-color:var(--cyan); transform:translateY(-3px); box-shadow:0 0 24px rgba(0,229,255,0.12); }
+    .stat-card-num { font-family:'Space Mono',monospace; font-size:30px; font-weight:700; color:var(--cyan); }
+    .stat-card-label { font-size:11px; font-family:'Space Mono',monospace; letter-spacing:1.5px; color:rgba(255,255,255,0.35); margin-top:6px; }
+
+    /* CHARTS ROW */
+    .charts-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:28px; }
+    .chart-card {
+      background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .chart-card:hover { border-color:rgba(0,229,255,0.3); box-shadow:0 0 20px rgba(0,229,255,0.07); }
+    .chart-label { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:rgba(255,255,255,0.35); margin-bottom:16px; }
+
+    /* TABLE */
+    .table-card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+    .table-header { padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+    .table-title { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:rgba(255,255,255,0.35); }
+    .count-pill { font-family:'Space Mono',monospace; font-size:11px; padding:4px 12px; border-radius:100px; background:rgba(255,45,85,0.1); color:var(--red); border:1px solid rgba(255,45,85,0.2); }
+
+    table { width:100%; border-collapse:collapse; }
+    thead th {
+      padding:14px 20px; text-align:left;
+      font-family:'Space Mono',monospace; font-size:10px; letter-spacing:2px;
+      color:rgba(255,255,255,0.3); border-bottom:1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom:1px solid rgba(255,255,255,0.04);
+      transition:background 0.2s;
+    }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:rgba(0,229,255,0.04); }
+    td { padding:14px 20px; font-size:14px; }
+    .email-cell { font-family:'Space Mono',monospace; font-size:12px; color:rgba(255,255,255,0.7); }
+    .source-pill {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:4px 12px; border-radius:100px; font-size:12px;
+      background:rgba(255,45,85,0.08); border:1px solid rgba(255,45,85,0.15); color:rgba(255,255,255,0.8);
+    }
+    .date-cell { font-family:'Space Mono',monospace; font-size:11px; color:rgba(255,255,255,0.35); }
+
+    .loading-row { padding:40px; text-align:center; font-family:'Space Mono',monospace; font-size:12px; color:rgba(255,255,255,0.3); letter-spacing:2px; }
+
+    @media(max-width:640px) {
+      .stats-row { grid-template-columns:1fr 1fr; }
+      .charts-row { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="nav">
+      <a href="/index.html" class="nav-back">← BACK</a>
+      <span style="font-family:'Space Mono',monospace;font-size:11px;color:rgba(255,255,255,0.2);letter-spacing:2px">// BREACH DATABASE</span>
+    </div>
+
+    <div class="header">
+      <h1>RECENT <span>BREACHES</span></h1>
+      <p>// LIVE BREACH DATABASE WITH ANALYTICS</p>
+    </div>
+
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="stat-card-num" id="statTotal">—</div><div class="stat-card-label">TOTAL RECORDS</div></div>
+      <div class="stat-card"><div class="stat-card-num" id="statEmails">—</div><div class="stat-card-label">UNIQUE EMAILS</div></div>
+      <div class="stat-card"><div class="stat-card-num" id="statSources">—</div><div class="stat-card-label">DATA SOURCES</div></div>
+      <div class="stat-card"><div class="stat-card-num" id="statRecent">—</div><div class="stat-card-label">2024 BREACHES</div></div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-label">// BREACHES BY SOURCE</div>
+        <canvas id="sourceChart" height="180"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-label">// BREACH TIMELINE</div>
+        <canvas id="yearChart" height="180"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <span class="table-title">// ALL BREACH RECORDS</span>
+        <span class="count-pill" id="countPill">Loading...</span>
+      </div>
+      <table>
+        <thead>
+          <tr><th>EMAIL</th><th>SOURCE</th><th>DATE</th></tr>
+        </thead>
+        <tbody id="breachBody">
+          <tr><td colspan="3" class="loading-row">FETCHING DATA...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const sourceEmojis = { LinkedIn:'💼', Facebook:'📘', Adobe:'🎨', Twitter:'🐦', Dropbox:'📦', Canva:'🎭' };
+
+    async function loadBreaches() {
+      try {
+        const res = await fetch('/api/breach/all');
+        const data = await res.json();
+        const breaches = data.breaches;
+
+        // Stats
+        const uniqueEmails = new Set(breaches.map(b => b.email)).size;
+        const uniqueSources = new Set(breaches.map(b => b.breachSource)).size;
+        const recent2024 = breaches.filter(b => new Date(b.breachDate).getFullYear() >= 2024).length;
+        document.getElementById('statTotal').textContent = breaches.length;
+        document.getElementById('statEmails').textContent = uniqueEmails;
+        document.getElementById('statSources').textContent = uniqueSources;
+        document.getElementById('statRecent').textContent = recent2024;
+        document.getElementById('countPill').textContent = breaches.length + ' RECORDS';
+
+        // Source chart
+        const sourceCounts = {};
+        breaches.forEach(b => { sourceCounts[b.breachSource] = (sourceCounts[b.breachSource]||0)+1; });
+        const colors = ['#ff2d55','#00e5ff','#ffb700','#00ff88','#a78bfa','#fb923c'];
+        new Chart(document.getElementById('sourceChart'), {
+          type: 'doughnut',
+          data: {
+            labels: Object.keys(sourceCounts),
+            datasets: [{ data: Object.values(sourceCounts), backgroundColor: colors, borderColor: '#0d1520', borderWidth: 3 }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { labels: { color: 'rgba(255,255,255,0.5)', font:{family:'Space Mono',size:10} } }
+            }
+          }
+        });
+
+        // Year chart
+        const yearCounts = {};
+        breaches.forEach(b => { const y = new Date(b.breachDate).getFullYear(); yearCounts[y]=(yearCounts[y]||0)+1; });
+        const yrs = Object.keys(yearCounts).sort();
+        new Chart(document.getElementById('yearChart'), {
+          type: 'line',
+          data: {
+            labels: yrs,
+            datasets: [{
+              label: 'Breaches', data: yrs.map(y=>yearCounts[y]),
+              borderColor: '#00e5ff', backgroundColor: 'rgba(0,229,255,0.08)',
+              fill: true, tension: 0.4, pointBackgroundColor: '#00e5ff', pointRadius: 5,
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color:'rgba(255,255,255,0.4)', font:{family:'Space Mono',size:10} }, grid:{color:'rgba(255,255,255,0.05)'} },
+              y: { ticks: { color:'rgba(255,255,255,0.4)', font:{family:'Space Mono',size:10}, stepSize:1 }, grid:{color:'rgba(255,255,255,0.05)'} }
+            }
+          }
+        });
+
+        // Table
+        const tbody = document.getElementById('breachBody');
+        tbody.innerHTML = '';
+        breaches.forEach((b, i) => {
+          const emoji = sourceEmojis[b.breachSource] || '⚠️';
+          const tr = document.createElement('tr');
+          tr.style.animationDelay = (i * 0.03) + 's';
+          tr.innerHTML = `
+            <td class="email-cell">${b.email}</td>
+            <td><span class="source-pill">${emoji} ${b.breachSource}</span></td>
+            <td class="date-cell">${new Date(b.breachDate).toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch(e) {
+        document.getElementById('breachBody').innerHTML = '<tr><td colspan="3" class="loading-row">FAILED TO LOAD DATA</td></tr>';
+      }
+    }
+
+    loadBreaches();
+  </script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BreachGuard — Database Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#05080f;--surface:#0b1120;--surface2:#111c2e;
+      --green:#7fff6a;--cyan:#00cfff;--red:#ff4757;
+      --amber:#ffcc00;--purple:#b57aff;
+      --border:rgba(255,255,255,0.08);--muted:rgba(255,255,255,0.38);
+    }
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:rgba(255,255,255,0.88);min-height:100vh}
+
+    /* LAYOUT */
+    .layout{display:flex;min-height:100vh}
+
+    /* SIDEBAR */
+    .sidebar{width:220px;flex-shrink:0;background:#08111e;border-right:1px solid var(--border);padding:28px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh;overflow-y:auto}
+    .brand{font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;margin-bottom:24px;padding:4px 8px}
+    .brand span{color:var(--red)}
+    .nav-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--muted);padding:6px 8px 3px;margin-top:10px}
+    .nav-link{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;text-decoration:none;color:var(--muted);font-size:13px;font-weight:500;transition:all 0.2s}
+    .nav-link:hover{background:rgba(0,207,255,0.07);color:rgba(255,255,255,0.8)}
+    .nav-link.active{background:rgba(0,207,255,0.1);color:var(--cyan);border:1px solid rgba(0,207,255,0.15)}
+    .sidebar-bottom{margin-top:auto;padding:10px;background:rgba(255,71,87,0.06);border:1px solid rgba(255,71,87,0.15);border-radius:10px;font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(255,71,87,0.7);letter-spacing:1px}
+
+    /* MAIN */
+    .main{flex:1;padding:36px;overflow-x:auto}
+
+    /* TOP BAR */
+    .topbar{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px}
+    .topbar h1{font-size:26px;font-weight:700}
+    .topbar h1 span{color:var(--cyan)}
+    .topbar-sub{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-top:4px}
+    .refresh-btn{display:flex;align-items:center;gap:8px;background:rgba(0,207,255,0.08);border:1px solid rgba(0,207,255,0.2);padding:9px 18px;border-radius:9px;color:var(--cyan);font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;transition:all 0.2s;letter-spacing:1px}
+    .refresh-btn:hover{background:rgba(0,207,255,0.15)}
+
+    /* STAT ROW */
+    .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+    .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:18px;transition:border-color 0.3s,transform 0.2s;cursor:default}
+    .stat-card:hover{border-color:rgba(0,207,255,0.3);transform:translateY(-2px)}
+    .stat-n{font-family:'IBM Plex Mono',monospace;font-size:26px;font-weight:700}
+    .stat-l{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-top:5px}
+
+    /* COLLECTION TABS */
+    .collection-tabs{display:flex;gap:6px;margin-bottom:20px}
+    .col-tab{padding:9px 20px;border-radius:9px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:1px;border:1px solid var(--border);color:var(--muted);background:var(--surface);transition:all 0.2s}
+    .col-tab:hover{color:rgba(255,255,255,0.8)}
+    .col-tab.active{background:rgba(0,207,255,0.1);color:var(--cyan);border-color:rgba(0,207,255,0.25)}
+
+    /* FILTER BAR */
+    .filter-bar{display:flex;gap:10px;margin-bottom:16px;align-items:center}
+    .search-input{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:rgba(255,255,255,0.88);font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none;width:260px;transition:border-color 0.3s}
+    .search-input::placeholder{color:var(--muted)}
+    .search-input:focus{border-color:rgba(0,207,255,0.4)}
+    .filter-select{background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:10px 14px;color:rgba(255,255,255,0.88);font-family:'IBM Plex Mono',monospace;font-size:11px;outline:none;cursor:pointer}
+    .filter-select option{background:#0b1120}
+    .record-count{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);margin-left:auto;letter-spacing:1px}
+
+    /* TABLE */
+    .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:20px}
+    .table-scroll{overflow-x:auto}
+    table{width:100%;border-collapse:collapse;min-width:600px}
+    thead th{padding:12px 16px;text-align:left;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);border-bottom:1px solid var(--border);background:rgba(255,255,255,0.02);white-space:nowrap}
+    tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.15s;cursor:default}
+    tbody tr:last-child{border:none}
+    tbody tr:hover{background:rgba(0,207,255,0.04)}
+    td{padding:12px 16px;font-size:13px;white-space:nowrap}
+    .mono{font-family:'IBM Plex Mono',monospace;font-size:11px}
+    .pill{display:inline-block;padding:3px 10px;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:1px}
+    .pill-admin{background:rgba(255,204,0,0.1);color:var(--amber);border:1px solid rgba(255,204,0,0.2)}
+    .pill-user{background:rgba(0,207,255,0.08);color:var(--cyan);border:1px solid rgba(0,207,255,0.15)}
+    .pill-high{background:rgba(255,71,87,0.12);color:var(--red);border:1px solid rgba(255,71,87,0.2)}
+    .pill-medium{background:rgba(255,204,0,0.1);color:var(--amber);border:1px solid rgba(255,204,0,0.2)}
+    .pill-low{background:rgba(127,255,106,0.08);color:var(--green);border:1px solid rgba(127,255,106,0.15)}
+    .pill-none{background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid rgba(255,255,255,0.08)}
+    .pill-email{background:rgba(0,207,255,0.08);color:var(--cyan);border:1px solid rgba(0,207,255,0.15)}
+    .pill-phone{background:rgba(127,255,106,0.08);color:var(--green);border:1px solid rgba(127,255,106,0.15)}
+    .pill-domain{background:rgba(181,122,255,0.08);color:var(--purple);border:1px solid rgba(181,122,255,0.15)}
+    .pill-footprint{background:rgba(255,159,67,0.1);color:#ff9f43;border:1px solid rgba(255,159,67,0.2)}
+
+    .empty-msg{padding:48px;text-align:center;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:2px}
+
+    /* CHART ROW */
+    .chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px}
+    .chart-label{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:14px}
+
+    /* ACCESS GATE */
+    .access-gate{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;text-align:center}
+    .gate-icon{font-size:56px}
+    .gate-title{font-size:24px;font-weight:700}
+    .gate-sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);letter-spacing:1px}
+    .gate-btn{margin-top:8px;padding:12px 28px;background:var(--red);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none;transition:all 0.2s}
+    .gate-btn:hover{background:#ff6070}
+
+    @media(max-width:768px){.sidebar{display:none}.stat-row{grid-template-columns:1fr 1fr}.chart-row{grid-template-columns:1fr}.main{padding:20px}}
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="brand">BREACH<span>GUARD</span></div>
+    <div class="nav-label">NAVIGATION</div>
+    <a href="/index.html" class="nav-link">🏠 Home</a>
+    <a href="/checker.html" class="nav-link">🔍 Email Checker</a>
+    <a href="/phone-checker.html" class="nav-link">📞 Phone & Domain</a>
+    <a href="/analytics.html" class="nav-link">📊 Analytics</a>
+    <a href="/ai-advisor.html" class="nav-link">🤖 AI Advisor</a>
+    <div class="nav-label">ADMIN</div>
+    <a href="/admin-login.html" class="nav-link">🔐 Admin Login</a>
+    <a href="/admin-dashboard.html" class="nav-link">👑 Dashboard</a>
+    <a href="/db-view.html" class="nav-link active">🗄️ DB Viewer</a>
+    <div class="sidebar-bottom">🔒 ADMIN ACCESS ONLY</div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="mainContent">
+    <!-- Content injected by JS based on auth state -->
+  </div>
+
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  const main = document.getElementById('mainContent');
+
+  // Check auth
+  if (!token) {
+    showGate();
+  } else {
+    loadDBView();
+  }
+
+  function showGate() {
+    main.innerHTML = `
+      <div class="access-gate">
+        <div class="gate-icon">🗄️</div>
+        <div class="gate-title">Database Viewer</div>
+        <div class="gate-sub">// ADMIN AUTHENTICATION REQUIRED</div>
+        <a href="/admin-login.html" class="gate-btn">Login as Admin</a>
+      </div>`;
+  }
+
+  async function loadDBView() {
+    main.innerHTML = `
+      <div class="topbar">
+        <div>
+          <h1>Database <span>Viewer</span></h1>
+          <div class="topbar-sub">// LIVE MONGODB COLLECTION BROWSER · breachDB</div>
+        </div>
+        <button class="refresh-btn" onclick="loadDBView()">↻ REFRESH</button>
+      </div>
+
+      <div class="stat-row" id="statRow">
+        <div class="stat-card"><div class="stat-n" id="sUsers" style="color:var(--cyan)">—</div><div class="stat-l">USERS COLLECTION</div></div>
+        <div class="stat-card"><div class="stat-n" id="sBreaches" style="color:var(--red)">—</div><div class="stat-l">BREACHES COLLECTION</div></div>
+        <div class="stat-card"><div class="stat-n" id="sSearches" style="color:var(--green)">—</div><div class="stat-l">SEARCH LOGS</div></div>
+        <div class="stat-card"><div class="stat-n" id="sToday" style="color:var(--amber)">—</div><div class="stat-l">SEARCHES TODAY</div></div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-box">
+          <div class="chart-label">// SEARCHES BY TYPE</div>
+          <canvas id="typeChart" height="160"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="chart-label">// RISK LEVEL DISTRIBUTION</div>
+          <canvas id="riskChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div class="collection-tabs" id="colTabs">
+        <div class="col-tab active" onclick="showCollection('users', this)">👤 users</div>
+        <div class="col-tab" onclick="showCollection('breaches', this)">💥 breaches</div>
+        <div class="col-tab" onclick="showCollection('searchlogs', this)">🔍 searchlogs</div>
+      </div>
+
+      <div class="filter-bar" id="filterBar">
+        <input class="search-input" id="filterInput" placeholder="Filter records..." oninput="filterTable()"/>
+        <select class="filter-select" id="filterSelect" onchange="filterTable()">
+          <option value="">All</option>
+        </select>
+        <span class="record-count" id="recordCount"></span>
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-scroll">
+          <div class="empty-msg" id="tableArea">LOADING DATA...</div>
+        </div>
+      </div>
+    `;
+
+    // Load all
